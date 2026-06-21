@@ -109,7 +109,7 @@ This repository contains only the helper application and compatibility profiles.
 
 
 ---
-#Korean
+# Korean
 
 AMD Boot Camp Driver Studio는 2019 MacBook Pro의 Radeon Pro 5500M에서 최신 AMD Radeon RX 5500M 계열 드라이버를 사용할 수 있도록 패키지 검증, 호환성 패치, 로컬 서명 및 설치를 지원하는 비공식 도구입니다.
 
