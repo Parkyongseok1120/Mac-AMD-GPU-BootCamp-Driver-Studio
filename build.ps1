@@ -7,8 +7,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root 'AMD.BootCamp.WinUI.csproj'
 $dist = Join-Path $root 'dist'
-$publish = Join-Path $dist 'AMD-BootCamp-Driver-Studio-2.5.0'
-$zip = Join-Path $dist 'AMD-BootCamp-Driver-Studio-2.5.0-win-x64.zip'
+$publish = Join-Path $dist 'AMD-BootCamp-Driver-Studio-1.0.0'
+$zip = Join-Path $dist 'AMD-BootCamp-Driver-Studio-1.0.0-win-x64.zip'
 
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }

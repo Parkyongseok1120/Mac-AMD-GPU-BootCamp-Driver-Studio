@@ -118,7 +118,7 @@ public sealed class PackageService
         var manifestPath = Path.Combine(destination, "BootCampStudio.manifest.json");
         var manifest = new
         {
-            ToolVersion = "2.5.0",
+            ToolVersion = "1.0.0",
             ProfileId = audit.Profile.Id,
             audit.Profile.MarketingVersion,
             audit.Profile.PackageVersion,

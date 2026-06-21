@@ -105,7 +105,7 @@ public sealed partial class MainWindow : Window
             SettingsSuppressAdrenalinToggle.IsOn = _settings.SuppressAdrenalinUpdates;
             RefreshBackups();
             await RefreshStatusAsync(ct);
-            _log.Info("AMD Boot Camp Driver Studio 2.5.0 started.");
+            _log.Info("AMD Boot Camp Driver Studio 1.0.0 started.");
         }, showProgress: false);
     }
 
