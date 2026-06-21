@@ -1,0 +1,110 @@
+# Build and publish output
+[Bb]in/
+[Oo]bj/
+[Dd]ist/
+[Aa]rtifacts/
+[Pp]ublish/
+[Tt]est[Rr]esults/
+coverage/
+coverage.*
+
+# Visual Studio, VS Code, Rider, and ReSharper
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+_ReSharper*/
+*.DotSettings.user
+
+# NuGet and generated .NET files
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts.json
+
+# Unpackaged WinUI / MSIX output
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+*.appx
+*.appxbundle
+*.appxupload
+*.appxsym
+*.msix
+*.msixbundle
+*.msixupload
+*.pri
+*.xbf
+
+# Compiled binaries and debug symbols
+*.exe
+*.dll
+*.pdb
+*.exp
+*.lib
+*.iobj
+*.ipdb
+*.deps.json
+*.runtimeconfig.json
+
+# AMD proprietary driver packages and generated patched packages
+AMD-Software-Installer/
+Packages/
+Prepared/
+Backups/
+DriverBackup*/
+Modified*/
+whql-amd-software-*.exe
+*.partial
+*.partial.*
+*.download.lock
+*.sys
+*.cat
+*.reg
+BootCampStudio.manifest.json
+
+# Certificates and signing secrets
+*.cer
+*.crt
+*.pfx
+*.p12
+*.pvk
+*.snk
+*.key
+*.pem
+
+# Release archives belong in GitHub Releases
+*.zip
+*.7z
+*.rar
+
+# Logs, dumps, and local temporary files
+*.log
+*.dmp
+*.tmp
+*.temp
+*.bak
+*.old
+*.cache
+*.userprefs
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.Development.json
+
+# Windows and macOS metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*

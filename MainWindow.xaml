@@ -1,0 +1,319 @@
+<Window
+    x:Class="AMD.BootCamp.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="AMD Boot Camp Driver Studio">
+
+    <NavigationView x:Name="MainNavigation"
+                    PaneDisplayMode="Left"
+                    IsBackButtonVisible="Collapsed"
+                    IsSettingsVisible="False"
+                    IsPaneToggleButtonVisible="True"
+                    OpenPaneLength="230"
+                    FontFamily="{StaticResource NanumRegular}"
+                    SelectionChanged="MainNavigation_SelectionChanged">
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="OverviewNav" Content="Overview" Tag="overview">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="PackageNav" Content="Package" Tag="package">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Folder" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="DownloadsNav" Content="Downloads" Tag="downloads">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Download" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="PrepareNav" Content="Prepare" Tag="prepare">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Repair" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="InstallNav" Content="Install" Tag="install">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Download" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="BackupsNav" Content="Backups" Tag="backups">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Save" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="SettingsNav" Content="Settings" Tag="settings">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Setting" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+
+        <Grid Padding="32,24,32,28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="175" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="AppTitleText" Text="AMD Boot Camp Driver Studio" Style="{StaticResource PageTitleStyle}" />
+                    <TextBlock x:Name="AppSubtitleText" Text="Profile-driven driver preparation and recovery" Style="{StaticResource CaptionStyle}" />
+                </StackPanel>
+                <ComboBox x:Name="LanguagePicker" Grid.Column="1" Width="150" SelectedIndex="0"
+                          SelectionChanged="LanguagePicker_SelectionChanged">
+                    <ComboBoxItem Content="한국어" Tag="ko-KR" />
+                    <ComboBoxItem Content="English" Tag="en-US" />
+                </ComboBox>
+            </Grid>
+
+            <InfoBar x:Name="StatusInfoBar" Grid.Row="1" Margin="0,0,0,16" IsOpen="False" IsClosable="True" />
+
+            <Grid Grid.Row="2">
+                <ScrollViewer x:Name="OverviewView" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="OverviewHeading" Text="System overview" Style="{StaticResource SectionTitleStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <Grid ColumnSpacing="18">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="DriverBasisNoticeText" Text="This profile adapts the Radeon RX 5500M driver family for the Boot Camp Radeon Pro 5500M." TextWrapping="Wrap" VerticalAlignment="Center" />
+                                <HyperlinkButton x:Name="CreatorLink" Grid.Column="1" Content="Visit creator's Tistory" NavigateUri="https://likeitit.tistory.com/209" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="GpuCardLabel" Text="Detected GPU" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="GpuNameText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="GpuCodeText" Text="—" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="DriverCardLabel" Text="Installed driver" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="DriverVersionText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                    <TextBlock x:Name="DriverInfText" Text="—" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="SecurityCardLabel" Text="Boot security" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="SecureBootText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                    <TextBlock x:Name="TestModeText" Text="—" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="6">
+                                    <TextBlock x:Name="ProfileStatusLabel" Text="Selected compatibility profile" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="ProfileStatusText" Text="No profile loaded" FontFamily="{StaticResource NanumBold}" FontSize="18" />
+                                    <TextBlock x:Name="ProfileStatusDetail" Text="Profiles are validated JSON files and can be added without rebuilding the app." Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                                <Button x:Name="RefreshStatusButton" Grid.Column="1" Content="Refresh" Click="RefreshStatusButton_Click" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="DownloadsView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="DownloadsHeading" Text="Official AMD downloads" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="DownloadsDescription" Text="Download a package only from the official AMD domain and verify its SHA-256 before use." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="DetectedWindowsText" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                <TextBlock x:Name="UnifiedPackageNoticeText" Text="AMD currently uses the same unified package URL for Windows 10 and Windows 11." Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                                <TextBlock x:Name="DownloadBasisNoticeText" Text="The compatibility patch is based on the Radeon RX 5500M driver family included in this package." Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="12">
+                                <TextBlock x:Name="DownloadFolderLabel" Text="Download folder" Style="{StaticResource CaptionStyle}" />
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="DownloadFolderBox" />
+                                    <Button x:Name="BrowseDownloadFolderButton" Grid.Column="1" Content="Browse" Click="BrowseDownloadFolderButton_Click" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <ListView x:Name="DriverVersionList" SelectionMode="None">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,10" MinWidth="760">
+                                        <Grid ColumnSpacing="18">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="5">
+                                                <TextBlock Text="{Binding DisplayName}" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                                <TextBlock Text="{Binding DriverVersion}" Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Text="{Binding WindowsCompatibilityText}" Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Text="{Binding InstallerFileName}" Style="{StaticResource CaptionStyle}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <Button Content="{Binding OfficialPageActionText}" Click="OfficialPageButton_Click" />
+                                                <Button Content="{Binding DownloadActionText}" Style="{StaticResource AccentButtonStyle}" Click="DownloadVersionButton_Click" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="DownloadResultLabel" Text="Downloaded installer" Style="{StaticResource CaptionStyle}" />
+                                <TextBlock x:Name="LastDownloadedText" Text="Not downloaded" TextWrapping="Wrap" FontFamily="{StaticResource NanumBold}" />
+                                <ProgressBar x:Name="DownloadProgressBar" Minimum="0" Maximum="100" Height="8" />
+                                <TextBlock x:Name="DownloadProgressText" Text="Waiting to download" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="RunDownloadedInstallerButton" Content="Run AMD extractor" Click="RunDownloadedInstallerButton_Click" />
+                                    <Button x:Name="DetectPackageButton" Content="Detect extracted package" Click="DetectPackageButton_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PackageView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="PackageHeading" Text="Package verification" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="PackageDescription" Text="Choose an official AMD extraction folder. Exact SHA-256 and hardware checks run before any modification." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="14">
+                                <TextBlock x:Name="ProfilePickerLabel" Text="Driver profile" Style="{StaticResource CaptionStyle}" />
+                                <ComboBox x:Name="ProfilePicker" HorizontalAlignment="Stretch" SelectionChanged="ProfilePicker_SelectionChanged" />
+                                <TextBlock x:Name="SourceFolderLabel" Text="Official AMD extraction folder" Style="{StaticResource CaptionStyle}" />
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="SourcePathBox" Text="C:\AMD" PlaceholderText="Select a folder" />
+                                    <Button x:Name="BrowseSourceButton" Grid.Column="1" Content="Browse" Click="BrowseSourceButton_Click" />
+                                </Grid>
+                                <Button x:Name="AuditButton" Content="Verify hardware and package" HorizontalAlignment="Left" Style="{StaticResource AccentButtonStyle}" Click="AuditButton_Click" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="AuditResultLabel" Text="Verification result" Style="{StaticResource CaptionStyle}" />
+                                <TextBlock x:Name="AuditResultText" Text="Not verified" FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
+                                <TextBlock x:Name="AuditDetailText" Text="—" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PrepareView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="PrepareHeading" Text="Prepare patched package" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="PrepareDescription" Text="The source is copied, patched through the selected profile, cataloged, and locally signed. The original package is never modified." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="14">
+                                <TextBlock x:Name="OutputFolderLabel" Text="Output folder" Style="{StaticResource CaptionStyle}" />
+                                <TextBox x:Name="OutputPathBox" Text="C:\AMD\BootCampDriverStudio\Prepared\AMD-26.6.1-Pro5500M" />
+                                <CheckBox x:Name="SecurityConsentCheck">
+                                    <TextBlock x:Name="SecurityConsentText" Text="I understand that this adds a locally trusted certificate and requires Windows test-signing mode." TextWrapping="Wrap" />
+                                </CheckBox>
+                                <Button x:Name="PrepareButton" Content="Prepare and sign package" HorizontalAlignment="Left" Style="{StaticResource AccentButtonStyle}" Click="PrepareButton_Click" />
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="PreparedPackageLabel" Text="Prepared package" Style="{StaticResource CaptionStyle}" />
+                                <TextBlock x:Name="PreparedRootText" Text="Not prepared" FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="InstallView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="InstallHeading" Text="Install and protect" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="InstallDescription" Text="A backup is created before the active graphics driver is replaced." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="14">
+                                <ToggleSwitch x:Name="BlockWindowsUpdateToggle" Header="Block driver updates through Windows Update" IsOn="True" />
+                                <ToggleSwitch x:Name="SuppressAdrenalinToggle" Header="Disable Adrenalin update checks and alerts" IsOn="True" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="EnableTestModeButton" Content="Enable test-signing mode" Click="EnableTestModeButton_Click" />
+                                    <Button x:Name="InstallButton" Content="Backup and install" Style="{StaticResource AccentButtonStyle}" Click="InstallButton_Click" />
+                                    <Button x:Name="RestartButton" Content="Restart" Click="RestartButton_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="BackupsView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="BackupsHeading" Text="Driver backups" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="BackupsDescription" Text="Restore a previously exported signed driver if the patched package fails." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="12">
+                                <ListView x:Name="BackupList" MinHeight="260" SelectionMode="Single" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="RefreshBackupsButton" Content="Refresh backups" Click="RefreshBackupsButton_Click" />
+                                    <Button x:Name="OpenBackupFolderButton" Content="Open backup folder" Click="OpenBackupFolderButton_Click" />
+                                    <Button x:Name="RestoreBackupButton" Content="Restore selected backup" Style="{StaticResource AccentButtonStyle}" Click="RestoreBackupButton_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="SettingsView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <TextBlock x:Name="SettingsHeading" Text="Settings" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="SettingsDescription" Text="Choose the interface language and recommended defaults." Style="{StaticResource CaptionStyle}" />
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="12">
+                                <TextBlock x:Name="SettingsLanguageLabel" Text="Interface language" Style="{StaticResource CaptionStyle}" />
+                                <ComboBox x:Name="SettingsLanguagePicker" Width="240" HorizontalAlignment="Left"
+                                          SelectionChanged="SettingsLanguagePicker_SelectionChanged">
+                                    <ComboBoxItem Content="한국어" Tag="ko-KR" />
+                                    <ComboBoxItem Content="English" Tag="en-US" />
+                                </ComboBox>
+                                <ToggleSwitch x:Name="SettingsBlockWindowsUpdateToggle" Header="Block driver updates through Windows Update" IsOn="True" />
+                                <ToggleSwitch x:Name="SettingsSuppressAdrenalinToggle" Header="Disable Adrenalin update checks and alerts" IsOn="True" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="SaveSettingsButton" Content="Save settings" Click="SaveSettingsButton_Click" />
+                                    <Button x:Name="ApplyDefaultsButton" Content="Apply recommended defaults" Style="{StaticResource AccentButtonStyle}" Click="ApplyDefaultsButton_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="SetupGuideLabel" Text="Initial setup" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                <TextBlock x:Name="SetupGuideText" Text="Download the verified package, run the AMD extractor, detect C:\AMD, then verify and prepare the package." Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="0,16,0,0" Padding="14,10">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,7">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LogsHeading" Text="Operation log" FontFamily="{StaticResource NanumBold}" FontSize="15" />
+                        <TextBlock x:Name="LogsDescription" Grid.Column="1" Margin="12,2,0,0" Text="Detailed audit, patch, signing, and installation events." Style="{StaticResource CaptionStyle}" />
+                        <Button x:Name="ClearLogButton" Grid.Column="2" Content="Clear log" Padding="12,5" Click="ClearLogButton_Click" />
+                    </Grid>
+                    <TextBox x:Name="LogTextBox" Grid.Row="1" FontFamily="Consolas" FontSize="11" IsReadOnly="True" AcceptsReturn="True"
+                             TextWrapping="NoWrap" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="4" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <ProgressBar x:Name="OperationProgress" Height="4" Minimum="0" Maximum="100" Visibility="Collapsed" />
+                <ProgressRing x:Name="BusyRing" Grid.Column="1" Width="28" Height="28" IsActive="False" />
+            </Grid>
+        </Grid>
+    </NavigationView>
+</Window>

@@ -1,0 +1,40 @@
+namespace AMD.BootCamp.WinUI.Models;
+
+public sealed record DetectedGpu(string Name, string PnpDeviceId, string Status, uint ErrorCode);
+
+public sealed record PackageAuditResult(
+    DriverProfile Profile,
+    string PackageRoot,
+    IReadOnlyList<(string Path, string Sha256)> Files,
+    bool IsValid);
+
+public sealed record PrepareResult(string OutputRoot, string ManifestPath, string CertificateThumbprint);
+
+public sealed class SecurityStatus
+{
+    public bool HardwarePresent { get; set; }
+    public string GpuName { get; set; } = string.Empty;
+    public string HardwareId { get; set; } = string.Empty;
+    public uint ProblemCode { get; set; }
+    public bool SecureBootEnabled { get; set; }
+    public bool TestSigningConfigured { get; set; }
+    public bool TestSigningActive { get; set; }
+    public string DriverVersion { get; set; } = string.Empty;
+    public string DriverInf { get; set; } = string.Empty;
+}
+
+public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
+
+public sealed record DownloadProgress(
+    long BytesReceived,
+    long? TotalBytes,
+    double Percent,
+    double BytesPerSecond,
+    TimeSpan? EstimatedRemaining,
+    bool IsVerifying = false);
+
+public sealed record DriverDownloadResult(
+    string Path,
+    bool ReusedExisting,
+    long Bytes,
+    string Sha256);

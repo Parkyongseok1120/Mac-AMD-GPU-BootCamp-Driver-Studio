@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "id": "amd-26.6.1-radeon-pro-5500m-020f106b",
+  "displayName": "AMD 26.6.1 — Radeon Pro 5500M (020F106B)",
+  "marketingVersion": "26.6.1",
+  "packageVersion": "25.10.43.12",
+  "driverVersion": "32.0.21043.12001",
+  "infName": "u0201163.inf",
+  "kernelDriverPath": "B026079/amdkmdag.sys",
+  "catalogFile": "u0201163.cat",
+  "certificateSubject": "CN=Local AMD BootCamp Test Driver",
+  "officialPageUrl": "https://www.amd.com/ko/resources/support-articles/release-notes/RN-RAD-WIN-26-6-1.html#Downloads",
+  "installerUrl": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.1-win11-c.exe",
+  "installerUrls": {
+    "windows10": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.1-win11-c.exe",
+    "windows11": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.1-win11-c.exe"
+  },
+  "installerFileName": "whql-amd-software-adrenalin-edition-26.6.1-win11-c.exe",
+  "installerSha256": "B4B4546876A3799121A2E16A469F0C70E10D9AFB8BC7C2168488DFCD74726E6B",
+  "installerSize": 1594760000,
+  "packageRootCandidates": [
+    ".",
+    "Packages/Drivers/Display2/WT6A_INF",
+    "Packages/Drivers/Display/WT6A_INF"
+  ],
+  "supportedHardwareIds": [
+    "PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40"
+  ],
+  "files": [
+    {
+      "path": "u0201163.inf",
+      "sha256": "5100D774A0FF67E1164D79061B7166D2CDC70C3E3A84A631D16A823707D94652",
+      "patchedSha256": "444F9A8048A07EF4C2466A83D321ECCF1E20213D332539846501AEEA5EC1E7DA"
+    },
+    {
+      "path": "B026079/amdgcf.dat",
+      "sha256": "D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A",
+      "patchedSha256": "DA56346B08E7D6A86D94AE6F2A11D366F43C8E8988120D98F29C9B9011699D25"
+    },
+    {
+      "path": "B026079/amdkmdag.sys",
+      "sha256": "79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7",
+      "patchedSha256": "6B3C6E1E85FD15D0AD0BABC1C32B3D514A3357E2533CA529C8C054648C95073D"
+    }
+  ],
+  "patches": [
+    {
+      "type": "TextReplace",
+      "file": "u0201163.inf",
+      "search": "\"%AMD7340.45%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&REV_CF",
+      "replacement": "\"%AMD7340.45%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&REV_CF\r\n\"%AMD7340.46%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40",
+      "expectedOccurrences": 1
+    },
+    {
+      "type": "TextReplace",
+      "file": "u0201163.inf",
+      "search": "AMD7340.45 = \"Radeon RX 5300\"",
+      "replacement": "AMD7340.45 = \"Radeon RX 5300\"\r\nAMD7340.46 = \"AMD Radeon Pro 5500M\"",
+      "expectedOccurrences": 1
+    },
+    {
+      "type": "TextReplace",
+      "file": "u0201163.inf",
+      "search": "ExcludeID = PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B",
+      "replacement": "; Boot Camp override: PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B",
+      "expectedOccurrences": 3
+    },
+    {
+      "type": "BinaryInsert",
+      "file": "B026079/amdgcf.dat",
+      "offset": 342,
+      "dataHex": "407340",
+      "int32Updates": [
+        { "offset": 0, "expectedValue": 170, "value": 171 }
+      ]
+    },
+    {
+      "type": "BinaryReplace",
+      "file": "B026079/amdkmdag.sys",
+      "offset": 338591,
+      "expectedHex": "79",
+      "replacementHex": "EB"
+    }
+  ],
+  "registrySettings": [
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_BootCampPlatform", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableDisplayableSupport", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_Falcon_QuickTransition_Enable", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "MobileLinkOverCloudAuth_NA", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "EnableUlps", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_GfxOffControl", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "DalPSRFeatureEnable", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableBrightnessInterface2", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "UseExecuteIndirectPacket", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_Apple_Bootcamp_Enable", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "UMD", "name": "ASD_DEF", "kind": "String", "value": "0" },
+    { "root": "DisplayClass", "subKey": "UMD", "name": "SurfaceFormatReplacements_DEF", "kind": "String", "value": "1" }
+  ]
+}
