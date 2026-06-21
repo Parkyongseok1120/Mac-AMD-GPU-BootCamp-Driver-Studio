@@ -34,6 +34,17 @@ Other GPUs and driver packages are not supported. The tool stops before making c
 
 The application is designed to work from a clean Windows installation where no AMD graphics driver has been installed.
 
+Mac Secure Boot blocks test-signed drivers, so it needs to be disabled.
+
+Also, this patch effectively only works while Windows Test Mode is enabled. If you update the AMD driver or turn off Test Mode, the patch will no longer remain applied.
+
+This is not a major issue in normal use, but after applying the patch, I would recommend avoiding suspicious cracked or pirated software. As long as you do that, there should not be any serious security concerns.
+
+- Reboot your Mac while holding Command + R.
+- In macOS Recovery, go to Utilities → Startup Security Utility.
+- Change Secure Boot to No Security.
+- Reboot while holding Option, then select Windows.
+
 1. Run `AMD-BootCamp-Driver-Studio.exe` as administrator.
 2. Download the verified AMD installer from the Downloads page.
 3. Run the AMD extractor and extract the package to `C:\AMD`.
@@ -140,6 +151,17 @@ AMD Boot Camp Driver Studio는 2019 MacBook Pro의 Radeon Pro 5500M에서 최신
 - 한국어 및 영어 인터페이스
 
 ## 사용 순서
+
+주의점(윈도우에서 Secure Boot끄는 것과 같긴 한데...)
+Mac의 Secure Boot가 테스트 서명을 차단하므로 해제 해야합니다.
+
+**또한 윈도우 테스트 모드에서만 사실상 작동하므로, amd 드라이버 업데이트 적용 및 테스트 모드를 끌시에 해당 패치는 모두 적용이 풀리게 됩니다.**
+-> 사실 크게 문제는 없습니다만, 패치이후 사용하다가 이상한 복돌 프로그램만 안까시면 보안에는 문제 없으실겁니다.
+
+- 재부팅하며 Command + R 유지
+- macOS 복구 → 유틸리티 → 시동 보안 유틸리티
+- Secure Boot를 보안 없음(No Security)으로 변경
+- 재부팅하며 Option → Windows 선택
 
 1. AMD 공식 드라이버를 다운로드합니다.
 2. AMD 압축 해제기를 실행해 `C:\AMD`에 압축을 풉니다.
