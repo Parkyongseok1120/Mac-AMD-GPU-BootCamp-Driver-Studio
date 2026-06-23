@@ -135,17 +135,33 @@ If it becomes clear that any part of the project is problematic, the repository 
 
 The application is designed to work best from a clean Windows installation where no AMD graphics driver has been installed.
 
-Mac Secure Boot blocks test-signed drivers, so it must be disabled.
+Security requirements depend on the selected driver profile.
 
-This patch effectively only works while Windows Test Mode is enabled. If you update the AMD driver or turn off Test Mode, the patch may no longer remain applied.
+The **25.2.1 non-binary-patched profile** is intended to work without disabling Mac Secure Boot.
+
+The **26.6.1 binary-patched profile** requires Mac Secure Boot to be disabled and Windows Test Mode to be enabled, because the prepared package contains locally modified and test-signed driver files.
+
+Do not disable Secure Boot or enable Windows Test Mode unless the selected profile explicitly requires it.
 
 Test-signing mode and disabled Secure Boot reduce the default security protections provided by Windows and Mac firmware. This is a security trade-off.
 
-Avoid using this setup on systems that handle sensitive work, corporate data, financial information, or environments that require strict driver integrity enforcement.
+Avoid using test-signed driver setups on systems that handle sensitive work, corporate data, financial information, or environments that require strict driver integrity enforcement.
 
-Only use this tool if you understand the implications of test-signed kernel drivers and are comfortable restoring your system if something goes wrong.
+Only use profiles that require test-signed kernel drivers if you understand the implications and are comfortable restoring your system if something goes wrong.
+
+### Secure Boot Requirement
+
+| Driver profile | Secure Boot change required | Windows Test Mode required |
+|---|---:|---:|
+| 25.2.1 non-binary-patched profile | No | No |
+| 26.6.1 binary-patched profile | Yes | Yes |
+| 26.6.1 non-binary-patched test option | No, if it can be made to work correctly | No, if it can be made to work correctly |
+
+The current 26.6.1 non-binary-patched test option is experimental and is currently not expected to work correctly.
 
 ### Disable Secure Boot on Intel Mac
+
+Only follow this section when using a profile that explicitly requires Secure Boot to be disabled, such as the 26.6.1 binary-patched profile.
 
 * Reboot your Mac while holding Command + R.
 * In macOS Recovery, go to Utilities → Startup Security Utility.
@@ -159,9 +175,9 @@ Only use this tool if you understand the implications of test-signed kernel driv
 3. Run the AMD extractor and extract the package to `C:\AMD`.
 4. Select **Detect extracted package**.
 5. Verify the detected package.
-6. Prepare and locally sign the patched package.
-7. Enable Windows test-signing mode.
-8. Restart Windows.
+6. Prepare the driver package for the selected profile.
+7. If the selected profile requires Windows Test Mode, enable Windows test-signing mode.
+8. Restart Windows if required.
 9. Install the prepared driver.
 10. Restart Windows again and confirm that Device Manager reports no error code.
 
