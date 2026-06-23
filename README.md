@@ -1,8 +1,8 @@
-# Mac-AMD-GPU-BootCamp-Driver-Studio
+# Mac-AMD-GPU-BootCamp-Driver-Studio Release 1.1.0
 
-<img width="1441" height="1076" alt="Image" src="https://github.com/user-attachments/assets/f9c72b55-dbc0-409e-b8f5-3d442fb734c0" />
-<img width="1438" height="933" alt="Image" src="https://github.com/user-attachments/assets/c1804f1c-5aabd" />
-<img width="1602" height="686" alt="Image" src="https://github.com/user-attachments/assets/423029b9-5e2b-42fa-a1cf-1fe5b6afde38" />
+<img width="1741" height="972" alt="스크린샷 2026-06-23 202959" src="https://github.com/user-attachments/assets/879d88b5-d19f-4f8d-a515-ec1a1a76ae43" />
+
+<img width="1717" height="1209" alt="스크린샷 2026-06-23 195454" src="https://github.com/user-attachments/assets/43cbaf70-1ad2-4f93-8e42-82b5a907f307" />
 
 AMD Boot Camp Driver Studio is an unofficial utility that prepares, verifies, patches, locally signs, installs, backs up, and restores a newer AMD Radeon RX 5500M-family driver package for the Radeon Pro 5500M found in the 2019 16-inch MacBook Pro.
 
