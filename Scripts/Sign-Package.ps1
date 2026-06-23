@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$KernelDriverPath,
     [Parameter(Mandatory = $true)][string]$CatalogFile,
     [Parameter(Mandatory = $true)][string]$CertificateSubject,
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+    [switch]$SkipKernelSigning
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,11 +27,22 @@ $catalog = Resolve-SafeChild $PackageRoot $CatalogFile
 if (-not (Test-Path -LiteralPath $kernel)) { throw "Kernel driver not found: $kernel" }
 
 if ($ValidateOnly) {
-    foreach ($file in @($kernel, $catalog)) {
-        if (-not (Test-Path -LiteralPath $file)) { throw "Signed file not found: $file" }
-        $sig = Get-AuthenticodeSignature -LiteralPath $file
-        if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -ne $CertificateSubject) {
-            throw "Signature validation failed: $file ($($sig.Status))"
+    if (-not (Test-Path -LiteralPath $catalog)) { throw "Signed file not found: $catalog" }
+    $catSig = Get-AuthenticodeSignature -LiteralPath $catalog
+    if ($catSig.Status -ne 'Valid' -or $catSig.SignerCertificate.Subject -ne $CertificateSubject) {
+        throw "Signature validation failed: $catalog ($($catSig.Status))"
+    }
+    if ($SkipKernelSigning) {
+        if (-not (Test-Path -LiteralPath $kernel)) { throw "Signed file not found: $kernel" }
+        $kernelSig = Get-AuthenticodeSignature -LiteralPath $kernel
+        if ($kernelSig.Status -ne 'Valid') {
+            throw "Original kernel driver signature is invalid: $kernel ($($kernelSig.Status))"
+        }
+    } else {
+        if (-not (Test-Path -LiteralPath $kernel)) { throw "Signed file not found: $kernel" }
+        $kernelSig = Get-AuthenticodeSignature -LiteralPath $kernel
+        if ($kernelSig.Status -ne 'Valid' -or $kernelSig.SignerCertificate.Subject -ne $CertificateSubject) {
+            throw "Signature validation failed: $kernel ($($kernelSig.Status))"
         }
     }
     Write-Output 'SIGNATURES=Valid'
@@ -51,8 +63,10 @@ Export-Certificate -Cert $cert -FilePath $cer -Force | Out-Null
 Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\LocalMachine\Root' | Out-Null
 Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPublisher' | Out-Null
 
-$sysSig = Set-AuthenticodeSignature -LiteralPath $kernel -Certificate $cert -HashAlgorithm SHA256
-if ($sysSig.Status -ne 'Valid') { throw "Kernel signing failed: $($sysSig.StatusMessage)" }
+if (-not $SkipKernelSigning) {
+    $sysSig = Set-AuthenticodeSignature -LiteralPath $kernel -Certificate $cert -HashAlgorithm SHA256
+    if ($sysSig.Status -ne 'Valid') { throw "Kernel signing failed: $($sysSig.StatusMessage)" }
+}
 if (Test-Path -LiteralPath $catalog) { Remove-Item -LiteralPath $catalog -Force }
 New-FileCatalog -Path $PackageRoot -CatalogFilePath $catalog -CatalogVersion 2.0 | Out-Null
 $catSig = Set-AuthenticodeSignature -LiteralPath $catalog -Certificate $cert -HashAlgorithm SHA256

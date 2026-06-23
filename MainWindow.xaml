@@ -44,7 +44,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="175" />
+                <RowDefinition Height="260" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -151,7 +151,7 @@
                                         <Grid ColumnSpacing="18">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                             <StackPanel Spacing="5">
-                                                <TextBlock Text="{Binding DisplayName}" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                                <TextBlock Text="{Binding DownloadDisplayName}" FontFamily="{StaticResource NanumBold}" FontSize="17" />
                                                 <TextBlock Text="{Binding DriverVersion}" Style="{StaticResource CaptionStyle}" />
                                                 <TextBlock Text="{Binding WindowsCompatibilityText}" Style="{StaticResource CaptionStyle}" />
                                                 <TextBlock Text="{Binding InstallerFileName}" Style="{StaticResource CaptionStyle}" />
@@ -172,6 +172,7 @@
                                 <ProgressBar x:Name="DownloadProgressBar" Minimum="0" Maximum="100" Height="8" />
                                 <TextBlock x:Name="DownloadProgressText" Text="Waiting to download" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="BrowseDownloadedInstallerButton" Content="Choose installer file" Click="BrowseDownloadedInstallerButton_Click" />
                                     <Button x:Name="RunDownloadedInstallerButton" Content="Run AMD extractor" Click="RunDownloadedInstallerButton_Click" />
                                     <Button x:Name="DetectPackageButton" Content="Detect extracted package" Click="DetectPackageButton_Click" />
                                 </StackPanel>
@@ -188,6 +189,7 @@
                             <StackPanel Spacing="14">
                                 <TextBlock x:Name="ProfilePickerLabel" Text="Driver profile" Style="{StaticResource CaptionStyle}" />
                                 <ComboBox x:Name="ProfilePicker" HorizontalAlignment="Stretch" SelectionChanged="ProfilePicker_SelectionChanged" />
+                                <TextBlock x:Name="PackageProfileModeText" Text="Selected install mode" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
                                 <TextBlock x:Name="SourceFolderLabel" Text="Official AMD extraction folder" Style="{StaticResource CaptionStyle}" />
                                 <Grid ColumnSpacing="10">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -213,6 +215,7 @@
                         <TextBlock x:Name="PrepareDescription" Text="The source is copied, patched through the selected profile, cataloged, and locally signed. The original package is never modified." Style="{StaticResource CaptionStyle}" />
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel Spacing="14">
+                                <TextBlock x:Name="PrepareProfileModeText" Text="Selected install mode" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
                                 <TextBlock x:Name="OutputFolderLabel" Text="Output folder" Style="{StaticResource CaptionStyle}" />
                                 <TextBox x:Name="OutputPathBox" Text="C:\AMD\BootCampDriverStudio\Prepared\AMD-26.6.1-Pro5500M" />
                                 <CheckBox x:Name="SecurityConsentCheck">
@@ -236,10 +239,26 @@
                         <TextBlock x:Name="InstallDescription" Text="A backup is created before the active graphics driver is replaced." Style="{StaticResource CaptionStyle}" />
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel Spacing="14">
+                                <TextBlock x:Name="InstallProfilePickerLabel" Text="Install profile" Style="{StaticResource CaptionStyle}" />
+                                <ListView x:Name="InstallProfilePicker" SelectionMode="Single" SelectionChanged="InstallProfilePicker_SelectionChanged">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,8" MinWidth="760">
+                                                <StackPanel Spacing="5">
+                                                    <TextBlock Text="{Binding InstallModeTitle}" FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                                    <TextBlock Text="{Binding InstallModeDescription}" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding DisplayName}" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                                <TextBlock x:Name="InstallProfileModeText" Text="Selected install mode" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
                                 <ToggleSwitch x:Name="BlockWindowsUpdateToggle" Header="Block driver updates through Windows Update" IsOn="True" />
                                 <ToggleSwitch x:Name="SuppressAdrenalinToggle" Header="Disable Adrenalin update checks and alerts" IsOn="True" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button x:Name="EnableTestModeButton" Content="Enable test-signing mode" Click="EnableTestModeButton_Click" />
+                                    <Button x:Name="DisableTestModeButton" Content="Disable test-signing mode" Click="DisableTestModeButton_Click" />
                                     <Button x:Name="InstallButton" Content="Backup and install" Style="{StaticResource AccentButtonStyle}" Click="InstallButton_Click" />
                                     <Button x:Name="RestartButton" Content="Restart" Click="RestartButton_Click" />
                                 </StackPanel>

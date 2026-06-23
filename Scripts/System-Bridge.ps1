@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('Status','EnableTestSigning','ConfigureDefaults','Install','Restore')][string]$Action,
+    [Parameter(Mandatory = $true)][ValidateSet('Status','EnableTestSigning','DisableTestSigning','ConfigureDefaults','Install','Restore')][string]$Action,
     [Parameter(Mandatory = $true)][string]$ProfilePath,
     [string]$PackageRoot,
     [string]$BackupFolder,
@@ -148,6 +148,11 @@ function Enable-TestSigning {
     if ($LASTEXITCODE -ne 0) { throw "BCDEdit failed with exit code $LASTEXITCODE" }
 }
 
+function Disable-TestSigning {
+    & bcdedit.exe /set testsigning off | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "BCDEdit failed with exit code $LASTEXITCODE" }
+}
+
 function Test-CurrentBootTestSigning {
     $options = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' `
         -Name SystemStartOptions -ErrorAction SilentlyContinue)
@@ -218,6 +223,18 @@ if ($Action -eq 'Status') {
             break
         }
     }
+    $certSubject = [string]$profile.certificateSubject
+    $certImported = $false
+    if (-not [string]::IsNullOrWhiteSpace($certSubject)) {
+        $certImported = [bool](
+            (Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -eq $certSubject -and $_.NotAfter -gt (Get-Date) } |
+                Select-Object -First 1) -and
+            (Get-ChildItem Cert:\LocalMachine\TrustedPublisher -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -eq $certSubject -and $_.NotAfter -gt (Get-Date) } |
+                Select-Object -First 1)
+        )
+    }
     $inf = if ($gpu) { Get-CurrentInf $gpu } else { '' }
     $version = if ($gpu) { Get-CurrentDriverVersion $gpu } else { '' }
     [ordered]@{
@@ -228,6 +245,7 @@ if ($Action -eq 'Status') {
         SecureBootEnabled = $secureBoot
         TestSigningConfigured = $testSigning
         TestSigningActive = [bool](Test-CurrentBootTestSigning)
+        CertificateImported = $certImported
         DriverVersion = [string]$version
         DriverInf = [string]$inf
     } | ConvertTo-Json -Compress
@@ -238,6 +256,13 @@ if ($Action -eq 'EnableTestSigning') {
     Require-Gpu | Out-Null
     Enable-TestSigning
     Write-Output 'TESTSIGNING=EnabledForNextBoot'
+    exit 0
+}
+
+if ($Action -eq 'DisableTestSigning') {
+    Require-Gpu | Out-Null
+    Disable-TestSigning
+    Write-Output 'TESTSIGNING=DisabledForNextBoot'
     exit 0
 }
 
@@ -256,21 +281,49 @@ if ($Action -eq 'Install') {
     $gpu = Require-Gpu
     Write-Output "GPU=$($gpu.Name)"
     Try-InitializeDisplayClassPaths $gpu | Out-Null
-    Enable-TestSigning
-    Write-Output 'TESTSIGNING=EnabledForNextBoot'
-    if (-not (Test-CurrentBootTestSigning)) {
-        throw 'Test-signing is configured but is not active in the current Windows session. Restart Windows, then run installation.'
+    $kernelModified = if ($null -ne $profile.kernelDriverModified) { [bool]$profile.kernelDriverModified } else { $true }
+    if ($kernelModified) {
+        Enable-TestSigning
+        Write-Output 'TESTSIGNING=EnabledForNextBoot'
+        if (-not (Test-CurrentBootTestSigning)) {
+            throw 'Test-signing is configured but is not active in the current Windows session. Restart Windows, then run installation.'
+        }
+    } else {
+        $certSubject = [string]$profile.certificateSubject
+        $certOk = (
+            (Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -eq $certSubject -and $_.NotAfter -gt (Get-Date) } |
+                Select-Object -First 1) -and
+            (Get-ChildItem Cert:\LocalMachine\TrustedPublisher -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -eq $certSubject -and $_.NotAfter -gt (Get-Date) } |
+                Select-Object -First 1)
+        )
+        if (-not $certOk) {
+            throw "Local signing certificate '$certSubject' is not present in Root and TrustedPublisher stores. Run Prepare first to import it."
+        }
+        Write-Output 'TESTSIGNING=NotRequired'
     }
     $kernel = Resolve-SafeChild $PackageRoot ([string]$profile.kernelDriverPath)
     $catalog = Resolve-SafeChild $PackageRoot ([string]$profile.catalogFile)
     Write-Output 'SIGNATURE_CHECK=Started'
-    foreach ($file in @($kernel, $catalog)) {
-        $sig = Get-AuthenticodeSignature -LiteralPath $file
-        if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -ne [string]$profile.certificateSubject) {
-            throw "Prepared signature validation failed: $file"
-        }
-        Write-Output "SIGNATURE_OK=$file"
+    $catSig = Get-AuthenticodeSignature -LiteralPath $catalog
+    if ($catSig.Status -ne 'Valid' -or $catSig.SignerCertificate.Subject -ne [string]$profile.certificateSubject) {
+        throw "Catalog signature validation failed: $catalog"
     }
+    Write-Output "SIGNATURE_OK=$catalog"
+    $kernelModified = if ($null -ne $profile.kernelDriverModified) { [bool]$profile.kernelDriverModified } else { $true }
+    if ($kernelModified) {
+        $kernelSig = Get-AuthenticodeSignature -LiteralPath $kernel
+        if ($kernelSig.Status -ne 'Valid' -or $kernelSig.SignerCertificate.Subject -ne [string]$profile.certificateSubject) {
+            throw "Kernel signature validation failed: $kernel"
+        }
+    } else {
+        $kernelSig = Get-AuthenticodeSignature -LiteralPath $kernel
+        if ($kernelSig.Status -ne 'Valid') {
+            throw "Original kernel driver signature is invalid: $kernel"
+        }
+    }
+    Write-Output "SIGNATURE_OK=$kernel"
 
     $currentInf = Get-CurrentInf $gpu
     $currentIsOem = -not [string]::IsNullOrWhiteSpace([string]$currentInf) -and [string]$currentInf -match '^oem\d+\.inf$'

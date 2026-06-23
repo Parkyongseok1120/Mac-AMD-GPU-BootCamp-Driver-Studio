@@ -52,6 +52,34 @@ public sealed class DriverDownloadService
         }
     }
 
+    public async Task<(DriverProfile Profile, DriverDownloadResult Result)> IdentifyInstallerAsync(
+        string path,
+        IEnumerable<DriverProfile> profiles,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(path)) throw new FileNotFoundException("AMD installer was not found.", path);
+        if (!await HasExecutableHeaderAsync(path, cancellationToken))
+            throw new InvalidDataException("The selected file is not a Windows executable installer.");
+
+        var info = new FileInfo(path);
+        var hash = await ComputeSha256Async(path, cancellationToken);
+        var profile = profiles
+            .Where(x => x.HasInstallerForCurrentWindows)
+            .Where(x => x.InstallerSha256.Equals(hash, StringComparison.OrdinalIgnoreCase))
+            .Where(x => x.InstallerSize <= 0 || x.InstallerSize == info.Length)
+            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (profile is null)
+        {
+            throw new InvalidDataException(
+                $"The selected installer does not match any loaded profile. Bytes={info.Length:N0}; SHA-256={hash}");
+        }
+
+        _log.Info($"Selected verified AMD {profile.MarketingVersion} installer: {path} ({info.Length:N0} bytes, SHA-256 {hash})");
+        return (profile, new DriverDownloadResult(path, true, info.Length, hash));
+    }
+
     private async Task<DriverDownloadResult> DownloadLockedAsync(
         DriverProfile profile,
         string installerUrl,
@@ -271,4 +299,8 @@ public sealed class DriverDownloadService
         var header = new byte[2];
         return await stream.ReadAsync(header, cancellationToken) == 2 && header[0] == (byte)'M' && header[1] == (byte)'Z';
     }
+
+    private static bool ProfileUsesBinaryPatch(DriverProfile profile) =>
+        profile.KernelDriverModified ||
+        profile.Patches.Any(p => p.Type.StartsWith("Binary", StringComparison.OrdinalIgnoreCase));
 }

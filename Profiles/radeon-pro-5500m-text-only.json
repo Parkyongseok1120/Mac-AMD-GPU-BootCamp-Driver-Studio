@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "amd-26.6.1-radeon-pro-5500m-020f106b",
-  "displayName": "AMD 26.6.1 — Radeon Pro 5500M (020F106B) [Binary Patch / TESTSIGNING Required]",
+  "id": "amd-26.6.1-radeon-pro-5500m-020f106b-textonly",
+  "displayName": "AMD 26.6.1 — Radeon Pro 5500M (020F106B) [No Binary Patch / TESTSIGNING OFF Test]",
   "marketingVersion": "26.6.1",
   "packageVersion": "25.10.43.12",
   "driverVersion": "32.0.21043.12001",
+  "kernelDriverModified": false,
   "infName": "u0201163.inf",
   "kernelDriverPath": "B026079/amdkmdag.sys",
   "catalogFile": "u0201163.cat",
@@ -30,17 +31,11 @@
     {
       "path": "u0201163.inf",
       "sha256": "5100D774A0FF67E1164D79061B7166D2CDC70C3E3A84A631D16A823707D94652",
-      "patchedSha256": "444F9A8048A07EF4C2466A83D321ECCF1E20213D332539846501AEEA5EC1E7DA"
-    },
-    {
-      "path": "B026079/amdgcf.dat",
-      "sha256": "D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A",
-      "patchedSha256": "DA56346B08E7D6A86D94AE6F2A11D366F43C8E8988120D98F29C9B9011699D25"
+      "patchedSha256": "233777D723388DB41CB5B9D80322A0AAAFD6628C4EE8D4318E9239DB76841325"
     },
     {
       "path": "B026079/amdkmdag.sys",
-      "sha256": "79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7",
-      "patchedSha256": "6B3C6E1E85FD15D0AD0BABC1C32B3D514A3357E2533CA529C8C054648C95073D"
+      "sha256": "79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7"
     }
   ],
   "patches": [
@@ -66,24 +61,16 @@
       "expectedOccurrences": 3
     },
     {
-      "type": "BinaryInsert",
-      "file": "B026079/amdgcf.dat",
-      "offset": 342,
-      "dataHex": "407340",
-      "int32Updates": [
-        { "offset": 0, "expectedValue": 170, "value": 171 }
-      ]
-    },
-    {
-      "type": "BinaryReplace",
-      "file": "B026079/amdkmdag.sys",
-      "offset": 338591,
-      "expectedHex": "79",
-      "replacementHex": "EB"
+      "type": "TextReplace",
+      "file": "u0201163.inf",
+      "search": "[ati2mtag_Navi14.HW]\r\nAddReg = atikmdag_MSI_HardwareDeviceSettings\r\n\r\n[ati2mtag_Navi21.HW]",
+      "replacement": "[ati2mtag_Navi14.HW]\r\nAddReg = atikmdag_MSI_HardwareDeviceSettings\r\nAddReg = AMD7340.46.BootCamp.AddReg\r\n\r\n[AMD7340.46.HW]\r\nAddReg = AMD7340.46.BootCamp.AddReg\r\n\r\n[AMD7340.46.BootCamp.AddReg]\r\nHKR,,KMD_BootCampPlatform,0x00010001,1\r\nHKR,,PP_Apple_Bootcamp_Enable,0x00010001,1\r\nHKR,,KMD_EnableDisplayableSupport,0x00010001,0\r\nHKR,,EnableUlps,0x00010001,0\r\nHKR,,PP_GfxOffControl,0x00010001,0\r\nHKR,,DalPSRFeatureEnable,0x00010001,0\r\nHKR,,KMD_EnableBrightnessInterface2,0x00010001,0\r\nHKR,,UseExecuteIndirectPacket,0x00010001,0\r\nHKR,,PP_Falcon_QuickTransition_Enable,0x00010001,1\r\nHKR,,MobileLinkOverCloudAuth_NA,0x00010001,0\r\n\r\n[ati2mtag_Navi21.HW]",
+      "expectedOccurrences": 1
     }
   ],
   "registrySettings": [
     { "root": "DisplayClass", "subKey": "", "name": "KMD_BootCampPlatform", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_Apple_Bootcamp_Enable", "kind": "DWord", "value": 1 },
     { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableDisplayableSupport", "kind": "DWord", "value": 0 },
     { "root": "DisplayClass", "subKey": "", "name": "PP_Falcon_QuickTransition_Enable", "kind": "DWord", "value": 1 },
     { "root": "DisplayClass", "subKey": "", "name": "MobileLinkOverCloudAuth_NA", "kind": "DWord", "value": 0 },
@@ -92,7 +79,6 @@
     { "root": "DisplayClass", "subKey": "", "name": "DalPSRFeatureEnable", "kind": "DWord", "value": 0 },
     { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableBrightnessInterface2", "kind": "DWord", "value": 0 },
     { "root": "DisplayClass", "subKey": "", "name": "UseExecuteIndirectPacket", "kind": "DWord", "value": 0 },
-    { "root": "DisplayClass", "subKey": "", "name": "PP_Apple_Bootcamp_Enable", "kind": "DWord", "value": 1 },
     { "root": "DisplayClass", "subKey": "UMD", "name": "ASD_DEF", "kind": "String", "value": "0" },
     { "root": "DisplayClass", "subKey": "UMD", "name": "SurfaceFormatReplacements_DEF", "kind": "String", "value": "1" }
   ]

@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
     private AppSettings _settings = new();
     private IReadOnlyList<DriverProfile> _loadedProfiles = [];
     private bool _syncingLanguage;
+    private bool _syncingProfileSelection;
 
     private DriverProfile? SelectedProfile => ProfilePicker.SelectedItem as DriverProfile;
 
@@ -82,8 +83,19 @@ public sealed partial class MainWindow : Window
             _loadedProfiles = await _profiles.LoadAsync(ct);
             ApplyLanguage();
             ProfilePicker.ItemsSource = _loadedProfiles;
-            DriverVersionList.ItemsSource = _loadedProfiles.Where(x => x.HasInstallerForCurrentWindows).ToList();
-            if (_loadedProfiles.Count > 0) ProfilePicker.SelectedIndex = 0;
+            DriverVersionList.ItemsSource = GetDownloadProfiles();
+            var pendingInstallResult = await _system.LoadInstallResultAsync(ct);
+            var initialProfile = Directory.Exists(_settings.PreparedFolder)
+                ? _loadedProfiles.FirstOrDefault(x => x.Id.Equals(_settings.PreparedProfileId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            initialProfile ??= _loadedProfiles.FirstOrDefault();
+            SelectProfile(initialProfile);
+            if (pendingInstallResult is { ProfileId.Length: > 0 })
+            {
+                var installProfile = _loadedProfiles.FirstOrDefault(x =>
+                    x.Id.Equals(pendingInstallResult.ProfileId, StringComparison.OrdinalIgnoreCase));
+                if (installProfile is not null) SelectProfile(installProfile);
+            }
             DownloadFolderBox.Text = _settings.DownloadFolder;
             SourcePathBox.Text = string.IsNullOrWhiteSpace(_settings.SourceFolder) ? @"C:\AMD" : _settings.SourceFolder;
             if (SelectedProfile is { } selected &&
@@ -105,7 +117,9 @@ public sealed partial class MainWindow : Window
             SettingsSuppressAdrenalinToggle.IsOn = _settings.SuppressAdrenalinUpdates;
             RefreshBackups();
             await RefreshStatusAsync(ct);
-            _log.Info("AMD Boot Camp Driver Studio 1.0.0 started.");
+            if (pendingInstallResult is not null)
+                await ShowPendingInstallResultAsync(pendingInstallResult, ct);
+            _log.Info("AMD Boot Camp Driver Studio 1.1.0 started.");
         }, showProgress: false);
     }
 
@@ -133,6 +147,90 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async Task ShowPendingInstallResultAsync(InstallResultSnapshot result, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var profile = _loadedProfiles.FirstOrDefault(x =>
+                              x.Id.Equals(result.ProfileId, StringComparison.OrdinalIgnoreCase))
+                          ?? SelectedProfile;
+            if (profile is null) return;
+
+            var status = await _system.GetStatusAsync(profile, cancellationToken);
+            var details = new List<string>();
+            if (!string.IsNullOrWhiteSpace(result.Message)) details.Add(result.Message);
+            details.Add(string.Format(_localization["dialog.installResultPackageRoot"], result.PackageRoot));
+            if (!string.IsNullOrWhiteSpace(result.BackupFolder))
+                details.Add(string.Format(_localization["dialog.installResultBackup"], result.BackupFolder));
+            details.Add(string.Format(_localization["dialog.installResultExpectedVersion"], profile.DriverVersion));
+            details.Add(string.Format(_localization["dialog.installResultActualVersion"],
+                string.IsNullOrWhiteSpace(status.DriverVersion) ? "—" : status.DriverVersion));
+            details.Add(string.Format(_localization["dialog.installResultDriverInf"],
+                string.IsNullOrWhiteSpace(status.DriverInf) ? "—" : status.DriverInf));
+
+            string title;
+            if (!result.Success)
+            {
+                title = _localization["dialog.installResultFailureTitle"];
+                details.Insert(0, _localization["dialog.installResultFailureIntro"]);
+                if (!string.IsNullOrWhiteSpace(result.Error))
+                    details.Add(string.Format(_localization["dialog.installResultError"], result.Error));
+                ShowStatus(result.Error.Length > 0 ? result.Error : result.Message, InfoBarSeverity.Error);
+            }
+            else
+            {
+                var issues = new List<string>();
+                if (!status.HardwarePresent)
+                    issues.Add(_localization["dialog.installResultHardwareMissing"]);
+                if (!string.Equals(status.DriverVersion, profile.DriverVersion, StringComparison.OrdinalIgnoreCase))
+                    issues.Add(string.Format(_localization["dialog.installResultVersionMismatch"], profile.DriverVersion,
+                        string.IsNullOrWhiteSpace(status.DriverVersion) ? "—" : status.DriverVersion));
+                if (status.ProblemCode != 0)
+                    issues.Add(string.Format(_localization["dialog.installResultProblemCode"], status.ProblemCode));
+                if (profile.KernelDriverModified && !status.TestSigningActive)
+                    issues.Add(_localization["dialog.installResultTestModeOff"]);
+
+                if (issues.Count == 0)
+                {
+                    title = _localization["dialog.installResultSuccessTitle"];
+                    details.Insert(0, _localization["dialog.installResultSuccessIntro"]);
+                    ShowStatus(_localization["message.installResultApplied"], InfoBarSeverity.Success);
+                }
+                else
+                {
+                    title = _localization["dialog.installResultWarningTitle"];
+                    details.Insert(0, _localization["dialog.installResultWarningIntro"]);
+                    details.Add(string.Empty);
+                    details.Add(_localization["dialog.installResultDetectedIssues"]);
+                    details.AddRange(issues.Select(x => $"• {x}"));
+                    ShowStatus(_localization["message.installResultNeedsReview"], InfoBarSeverity.Warning);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.LogPath))
+                details.Add(string.Format(_localization["dialog.installResultLog"], result.LogPath));
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = MainNavigation.XamlRoot,
+                Title = title,
+                Content = new TextBlock
+                {
+                    Text = string.Join(Environment.NewLine, details),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 640
+                },
+                CloseButtonText = _localization["action.close"],
+                DefaultButton = ContentDialogButton.Close
+            };
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            _system.ClearInstallResult();
+        }
+    }
+
     private async Task RefreshStatusAsync(CancellationToken cancellationToken)
     {
         var profile = SelectedProfile;
@@ -148,11 +246,20 @@ public sealed partial class MainWindow : Window
         DriverVersionText.Text = string.IsNullOrWhiteSpace(status.DriverVersion) ? "—" : status.DriverVersion;
         DriverInfText.Text = string.IsNullOrWhiteSpace(status.DriverInf) ? "—" : status.DriverInf;
         SecureBootText.Text = status.SecureBootEnabled ? _localization["status.secureBootOn"] : _localization["status.secureBootOff"];
-        TestModeText.Text = status.TestSigningActive
-            ? _localization["status.testModeOn"]
-            : status.TestSigningConfigured
-                ? _localization["status.testModePending"]
-                : _localization["status.testModeOff"];
+        if (profile.KernelDriverModified)
+        {
+            TestModeText.Text = status.TestSigningActive
+                ? _localization["status.testModeOn"]
+                : status.TestSigningConfigured
+                    ? _localization["status.testModePending"]
+                    : _localization["status.testModeOff"];
+        }
+        else
+        {
+            TestModeText.Text = status.CertificateImported
+                ? _localization["status.certImported"]
+                : _localization["status.certNotImported"];
+        }
     }
 
     private void MainNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -232,9 +339,11 @@ public sealed partial class MainWindow : Window
         if (_preparedRoot is null) PreparedRootText.Text = _localization["prepare.notPrepared"];
         InstallHeading.Text = _localization["install.heading"];
         InstallDescription.Text = _localization["install.description"];
+        InstallProfilePickerLabel.Text = _localization["install.profileChoice"];
         BlockWindowsUpdateToggle.Header = _localization["install.blockWu"];
         SuppressAdrenalinToggle.Header = _localization["install.blockAdrenalin"];
         EnableTestModeButton.Content = _localization["action.testMode"];
+        DisableTestModeButton.Content = _localization["action.disableTestMode"];
         InstallButton.Content = _localization["action.install"];
         RestartButton.Content = _localization["action.restart"];
         BackupsHeading.Text = _localization["backups.heading"];
@@ -261,6 +370,7 @@ public sealed partial class MainWindow : Window
             DownloadProgressText.Text = _localization["downloads.progressIdle"];
         }
         RunDownloadedInstallerButton.Content = _localization["action.runInstaller"];
+        BrowseDownloadedInstallerButton.Content = _localization["action.chooseInstaller"];
         DetectPackageButton.Content = _localization["action.detectPackage"];
         SettingsHeading.Text = _localization["settings.heading"];
         SettingsDescription.Text = _localization["settings.description"];
@@ -273,16 +383,43 @@ public sealed partial class MainWindow : Window
         SetupGuideText.Text = _localization["settings.setupGuide"];
         foreach (var profile in _loadedProfiles)
         {
+            UpdateProfileCardText(profile);
             profile.DownloadActionText = string.Format(_localization["action.downloadFor"], DriverProfile.CurrentWindowsDisplayName);
             profile.OfficialPageActionText = _localization["action.officialPage"];
             profile.WindowsCompatibilityText = _localization["downloads.compatibility"];
         }
+        if (SelectedProfile is { } selectedProfile)
+        {
+            _syncingProfileSelection = true;
+            try
+            {
+                InstallProfilePicker.ItemsSource = GetInstallProfilesFor(selectedProfile);
+                InstallProfilePicker.SelectedItem = selectedProfile;
+            }
+            finally
+            {
+                _syncingProfileSelection = false;
+            }
+        }
+        UpdateProfileModeUi();
         if (_loadedProfiles.Count > 0)
         {
             DriverVersionList.ItemsSource = null;
-            DriverVersionList.ItemsSource = _loadedProfiles.Where(x => x.HasInstallerForCurrentWindows).ToList();
+            DriverVersionList.ItemsSource = GetDownloadProfiles();
         }
     }
+
+    private List<DriverProfile> GetDownloadProfiles() =>
+        _loadedProfiles
+            .Where(x => x.HasInstallerForCurrentWindows)
+            .GroupBy(x => $"{x.InstallerFileName}|{x.InstallerSha256}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+                .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .First())
+            .OrderByDescending(x => x.MarketingVersion, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private void BrowseSourceButton_Click(object sender, RoutedEventArgs e)
     {
@@ -311,10 +448,50 @@ public sealed partial class MainWindow : Window
             : null;
     }
 
+    private string? SelectInstallerFile(string currentPath)
+    {
+        using var dialog = new System.Windows.Forms.OpenFileDialog
+        {
+            Title = _localization["downloads.chooseInstallerTitle"],
+            Filter = _localization["downloads.installerFilter"],
+            CheckFileExists = true,
+            Multiselect = false,
+            InitialDirectory = Directory.Exists(currentPath)
+                ? currentPath
+                : Directory.Exists(DownloadFolderBox.Text.Trim())
+                    ? DownloadFolderBox.Text.Trim()
+                    : string.Empty
+        };
+        var owner = new WinFormsWindow(WindowNative.GetWindowHandle(this));
+        return dialog.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK
+            ? dialog.FileName
+            : null;
+    }
+
+    private async void BrowseDownloadedInstallerButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedPath = SelectInstallerFile(_lastDownloadedInstaller ?? DownloadFolderBox.Text.Trim());
+        if (selectedPath is null) return;
+        await RunBusyAsync(async ct =>
+        {
+            var (profile, result) = await _downloads.IdentifyInstallerAsync(selectedPath, _loadedProfiles, ct);
+            SelectInstallProfileForDownloadedPackage(profile);
+            _lastDownloadedInstaller = result.Path;
+            _settings.LastDownloadedInstaller = result.Path;
+            _settings.DownloadFolder = Path.GetDirectoryName(result.Path) ?? _settings.DownloadFolder;
+            DownloadFolderBox.Text = _settings.DownloadFolder;
+            await _settingsService.SaveAsync(_settings, ct);
+            LastDownloadedText.Text = result.Path;
+            DownloadProgressBar.Value = 100;
+            DownloadProgressText.Text = string.Format(_localization["downloads.progressComplete"], FormatBytes(result.Bytes));
+            ShowStatus(_localization["message.selectedInstallerVerified"], InfoBarSeverity.Success);
+        });
+    }
+
     private async void DownloadVersionButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: DriverProfile profile }) return;
-        ProfilePicker.SelectedItem = profile;
+        SelectInstallProfileForDownloadedPackage(profile);
         await RunBusyAsync(async ct =>
         {
             await SaveSettingsFromControlsAsync(ct);
@@ -495,10 +672,28 @@ public sealed partial class MainWindow : Window
     private async void EnableTestModeButton_Click(object sender, RoutedEventArgs e)
     {
         if (!RequireConsent()) return;
+        var profile = RequireProfile();
+        if (!profile.KernelDriverModified)
+        {
+            ShowStatus(_localization["message.certModeNotRequired"], InfoBarSeverity.Informational);
+            return;
+        }
         await RunBusyAsync(async ct =>
         {
-            await _system.EnableTestSigningAsync(RequireProfile(), ct);
+            await _system.EnableTestSigningAsync(profile, ct);
             ShowStatus(_localization["message.testModeSuccess"], InfoBarSeverity.Success);
+            await RefreshStatusAsync(ct);
+        }, false);
+    }
+
+    private async void DisableTestModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmed = await ConfirmAsync(_localization["dialog.disableTestModeTitle"], _localization["dialog.disableTestModeBody"]);
+        if (!confirmed) return;
+        await RunBusyAsync(async ct =>
+        {
+            await _system.DisableTestSigningAsync(RequireProfile(), ct);
+            ShowStatus(_localization["message.disableTestModeSuccess"], InfoBarSeverity.Success);
             await RefreshStatusAsync(ct);
         }, false);
     }
@@ -566,6 +761,71 @@ public sealed partial class MainWindow : Window
 
     private void ProfilePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_syncingProfileSelection) return;
+        SelectProfile(ProfilePicker.SelectedItem as DriverProfile);
+    }
+
+    private void InstallProfilePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingProfileSelection) return;
+        SelectProfile(InstallProfilePicker.SelectedItem as DriverProfile);
+    }
+
+    private void SelectProfile(DriverProfile? profile)
+    {
+        if (profile is null) return;
+        _syncingProfileSelection = true;
+        try
+        {
+            ProfilePicker.SelectedItem = profile;
+            InstallProfilePicker.ItemsSource = GetInstallProfilesFor(profile);
+            InstallProfilePicker.SelectedItem = profile;
+        }
+        finally
+        {
+            _syncingProfileSelection = false;
+        }
+
+        OnSelectedProfileChanged();
+    }
+
+    private void SelectInstallProfileForDownloadedPackage(DriverProfile downloadProfile)
+    {
+        var current = SelectedProfile;
+        if (current is not null &&
+            current.InstallerFileName.Equals(downloadProfile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
+            current.InstallerSha256.Equals(downloadProfile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var installProfile = _loadedProfiles
+            .Where(x => x.InstallerFileName.Equals(downloadProfile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
+                        x.InstallerSha256.Equals(downloadProfile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        SelectProfile(installProfile ?? downloadProfile);
+    }
+
+    private List<DriverProfile> GetInstallProfilesFor(DriverProfile profile) =>
+        _loadedProfiles
+            .Where(x => x.InstallerFileName.Equals(profile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
+                        x.InstallerSha256.Equals(profile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private void UpdateProfileCardText(DriverProfile profile)
+    {
+        profile.DownloadDisplayName = $"AMD {profile.MarketingVersion}";
+        var mode = GetProfileMode(profile);
+        profile.InstallModeTitle = mode.Title;
+        profile.InstallModeDescription = mode.Detail;
+    }
+
+    private void OnSelectedProfileChanged()
+    {
         _audit = null;
         _preparedRoot = null;
         if (SelectedProfile is { } profile)
@@ -573,7 +833,64 @@ public sealed partial class MainWindow : Window
             ProfileStatusText.Text = profile.DisplayName;
             OutputPathBox.Text = $"C:\\AMD\\BootCampDriverStudio\\Prepared\\AMD-{profile.MarketingVersion}-{profile.Id.Split('-').Last()}";
         }
+        UpdateProfileModeUi();
     }
+
+    private void UpdateProfileModeUi()
+    {
+        var profile = SelectedProfile;
+        if (profile is null)
+        {
+            PackageProfileModeText.Text = _localization["install.mode.selectProfile"];
+            PrepareProfileModeText.Text = _localization["install.mode.selectProfile"];
+            InstallProfileModeText.Text = _localization["install.mode.selectInstallProfile"];
+            EnableTestModeButton.IsEnabled = false;
+            return;
+        }
+
+        var mode = GetProfileMode(profile);
+        EnableTestModeButton.IsEnabled = mode.RequiresTestSigning;
+        EnableTestModeButton.Content = mode.RequiresTestSigning
+            ? _localization["action.testMode"]
+            : _localization["install.testSigningNotRequired"];
+
+        var text = $"{profile.DisplayName}\n{_localization["install.modeLabel"]}: {mode.Title}\n{mode.Detail}";
+        PackageProfileModeText.Text = text;
+        PrepareProfileModeText.Text = text;
+        InstallProfileModeText.Text = text;
+        SecurityConsentText.Text = mode.Consent;
+    }
+
+    private (string Title, string Detail, string Consent, bool RequiresTestSigning) GetProfileMode(DriverProfile profile)
+    {
+        if (ProfileUsesBinaryPatch(profile))
+        {
+            return (
+                _localization["install.mode.binary.title"],
+                _localization["install.mode.binary.detail"],
+                _localization["install.mode.binary.consent"],
+                true);
+        }
+
+        if (profile.Id.Contains("textonly", StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                _localization["install.mode.textOnly.title"],
+                _localization["install.mode.textOnly.detail"],
+                _localization["install.mode.textOnly.consent"],
+                false);
+        }
+
+        return (
+            _localization["install.mode.whql.title"],
+            _localization["install.mode.whql.detail"],
+            _localization["install.mode.whql.consent"],
+            false);
+    }
+
+    private static bool ProfileUsesBinaryPatch(DriverProfile profile) =>
+        profile.KernelDriverModified ||
+        profile.Patches.Any(p => p.Type.StartsWith("Binary", StringComparison.OrdinalIgnoreCase));
 
     private DriverProfile RequireProfile() => SelectedProfile ?? throw new InvalidOperationException(_localization["message.profileRequired"]);
 

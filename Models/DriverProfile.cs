@@ -26,11 +26,18 @@ public sealed class DriverProfile
     public List<FileRule> Files { get; set; } = [];
     public List<PatchOperation> Patches { get; set; } = [];
     public List<RegistrySetting> RegistrySettings { get; set; } = [];
+    public bool KernelDriverModified { get; set; } = true;
 
     [JsonIgnore]
     public string SourcePath { get; set; } = string.Empty;
     [JsonIgnore]
     public string DownloadActionText { get; set; } = "Download";
+    [JsonIgnore]
+    public string DownloadDisplayName { get; set; } = string.Empty;
+    [JsonIgnore]
+    public string InstallModeTitle { get; set; } = string.Empty;
+    [JsonIgnore]
+    public string InstallModeDescription { get; set; } = string.Empty;
     [JsonIgnore]
     public string OfficialPageActionText { get; set; } = "Official page";
     [JsonIgnore]

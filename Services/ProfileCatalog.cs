@@ -48,7 +48,11 @@ public sealed class ProfileCatalog
                 }
             }
         }
-        return byId.Values.OrderByDescending(x => x.MarketingVersion).ToList();
+        return byId.Values
+            .OrderByDescending(x => x.MarketingVersion)
+            .ThenBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public static void Validate(DriverProfile profile)
@@ -56,8 +60,8 @@ public sealed class ProfileCatalog
         if (profile.SchemaVersion != 1) throw new InvalidDataException($"Unsupported schema: {profile.SchemaVersion}");
         if (string.IsNullOrWhiteSpace(profile.Id) || string.IsNullOrWhiteSpace(profile.InfName))
             throw new InvalidDataException("Profile ID and INF name are required.");
-        if (profile.SupportedHardwareIds.Count == 0 || profile.Files.Count == 0 || profile.Patches.Count == 0)
-            throw new InvalidDataException("Hardware IDs, file rules, and patches are required.");
+        if (profile.SupportedHardwareIds.Count == 0 || profile.Files.Count == 0)
+            throw new InvalidDataException("Hardware IDs and file rules are required.");
 
         foreach (var path in profile.Files.Select(x => x.Path)
                      .Concat(profile.Patches.Select(x => x.File))
@@ -119,6 +123,10 @@ public sealed class ProfileCatalog
               uri.Host.EndsWith(".amd.com", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("URL must use HTTPS on an official AMD domain.");
     }
+
+    private static bool ProfileUsesBinaryPatch(DriverProfile profile) =>
+        profile.KernelDriverModified ||
+        profile.Patches.Any(p => p.Type.StartsWith("Binary", StringComparison.OrdinalIgnoreCase));
 
     private static void EnsureSafeRelativePath(string path)
     {

@@ -19,8 +19,23 @@ public sealed class SecurityStatus
     public bool SecureBootEnabled { get; set; }
     public bool TestSigningConfigured { get; set; }
     public bool TestSigningActive { get; set; }
+    public bool CertificateImported { get; set; }
     public string DriverVersion { get; set; } = string.Empty;
     public string DriverInf { get; set; } = string.Empty;
+}
+
+public sealed class InstallResultSnapshot
+{
+    public string ProfileId { get; set; } = string.Empty;
+    public string PackageRoot { get; set; } = string.Empty;
+    public string LogPath { get; set; } = string.Empty;
+    public string BackupFolder { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public int ExitCode { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string Error { get; set; } = string.Empty;
+    public DateTimeOffset StartedAt { get; set; }
+    public DateTimeOffset CompletedAt { get; set; }
 }
 
 public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);

@@ -118,7 +118,7 @@ public sealed class PackageService
         var manifestPath = Path.Combine(destination, "BootCampStudio.manifest.json");
         var manifest = new
         {
-            ToolVersion = "1.0.0",
+            ToolVersion = "1.1.0",
             ProfileId = audit.Profile.Id,
             audit.Profile.MarketingVersion,
             audit.Profile.PackageVersion,
@@ -134,13 +134,16 @@ public sealed class PackageService
         if (signPackage)
         {
             progress?.Report(0.86);
-            var sign = await _bridge.RunScriptAsync("Sign-Package.ps1",
-            [
+            var signArgs = new List<string>
+            {
                 "-PackageRoot", destination,
                 "-KernelDriverPath", audit.Profile.KernelDriverPath,
                 "-CatalogFile", audit.Profile.CatalogFile,
                 "-CertificateSubject", audit.Profile.CertificateSubject
-            ], cancellationToken);
+            };
+            if (!audit.Profile.KernelDriverModified)
+                signArgs.Add("-SkipKernelSigning");
+            var sign = await _bridge.RunScriptAsync("Sign-Package.ps1", signArgs, cancellationToken);
             PowerShellBridge.EnsureSuccess(sign, "Driver package signing");
             thumbprint = sign.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
                 .LastOrDefault(x => x.StartsWith("THUMBPRINT=", StringComparison.OrdinalIgnoreCase))?
@@ -152,25 +155,29 @@ public sealed class PackageService
 
     public async Task ValidatePreparedAsync(DriverProfile profile, string root, CancellationToken cancellationToken = default)
     {
-        // Authenticode signing intentionally changes the kernel binary. Its unsigned
-        // patched hash is verified before signing; here the PowerShell bridge verifies
-        // the resulting signature instead. Text/config files remain byte-exact.
+        // When KernelDriverModified is true, Authenticode signing intentionally changes the kernel
+        // binary after patching, so its hash is excluded here and the PowerShell bridge verifies
+        // the resulting signature instead. When KernelDriverModified is false, the kernel has no
+        // patchedSha256 in the profile and is naturally excluded by the Where filter.
         foreach (var rule in profile.Files.Where(x =>
                      !string.IsNullOrWhiteSpace(x.PatchedSha256) &&
-                     !x.Path.Equals(profile.KernelDriverPath, StringComparison.OrdinalIgnoreCase)))
+                     !(profile.KernelDriverModified && x.Path.Equals(profile.KernelDriverPath, StringComparison.OrdinalIgnoreCase))))
         {
             var hash = await ComputeSha256Async(ProfileCatalog.SafeCombine(root, rule.Path), cancellationToken);
             if (!hash.Equals(rule.PatchedSha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException($"Prepared file validation failed: {rule.Path}");
         }
-        var validate = await _bridge.RunScriptAsync("Sign-Package.ps1",
-        [
+        var validateArgs = new List<string>
+        {
             "-ValidateOnly",
             "-PackageRoot", root,
             "-KernelDriverPath", profile.KernelDriverPath,
             "-CatalogFile", profile.CatalogFile,
             "-CertificateSubject", profile.CertificateSubject
-        ], cancellationToken);
+        };
+        if (!profile.KernelDriverModified)
+            validateArgs.Add("-SkipKernelSigning");
+        var validate = await _bridge.RunScriptAsync("Sign-Package.ps1", validateArgs, cancellationToken);
         PowerShellBridge.EnsureSuccess(validate, "Prepared package signature validation");
     }
 

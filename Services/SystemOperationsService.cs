@@ -7,10 +7,13 @@ public sealed class SystemOperationsService
 {
     private readonly AppLogger _log;
     private readonly PowerShellBridge _bridge;
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     public static string BackupRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "AMD BootCamp Driver Studio", "Backups");
+    public static string InstallResultPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "AMD BootCamp Driver Studio", "install-result.json");
 
     public SystemOperationsService(AppLogger log, PowerShellBridge bridge)
     {
@@ -34,6 +37,13 @@ public sealed class SystemOperationsService
         var result = await _bridge.RunScriptAsync("System-Bridge.ps1",
         ["-Action", "EnableTestSigning", "-ProfilePath", profile.SourcePath], cancellationToken);
         PowerShellBridge.EnsureSuccess(result, "Enable test-signing mode");
+    }
+
+    public async Task DisableTestSigningAsync(DriverProfile profile, CancellationToken cancellationToken = default)
+    {
+        var result = await _bridge.RunScriptAsync("System-Bridge.ps1",
+        ["-Action", "DisableTestSigning", "-ProfilePath", profile.SourcePath], cancellationToken);
+        PowerShellBridge.EnsureSuccess(result, "Disable test-signing mode");
     }
 
     public async Task ConfigureDefaultsAsync(
@@ -103,6 +113,25 @@ public sealed class SystemOperationsService
             "-BackupFolder", backupFolder
         ], cancellationToken);
         PowerShellBridge.EnsureSuccess(result, "Backup restoration");
+    }
+
+    public async Task<InstallResultSnapshot?> LoadInstallResultAsync(CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(InstallResultPath)) return null;
+        await using var stream = File.OpenRead(InstallResultPath);
+        return await JsonSerializer.DeserializeAsync<InstallResultSnapshot>(stream, JsonOptions, cancellationToken);
+    }
+
+    public async Task SaveInstallResultAsync(InstallResultSnapshot snapshot, CancellationToken cancellationToken = default)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(InstallResultPath)!);
+        await using var stream = new FileStream(InstallResultPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await JsonSerializer.SerializeAsync(stream, snapshot, JsonOptions, cancellationToken);
+    }
+
+    public void ClearInstallResult()
+    {
+        if (File.Exists(InstallResultPath)) File.Delete(InstallResultPath);
     }
 
     public IReadOnlyList<string> ListBackups()

@@ -6,9 +6,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root 'AMD.BootCamp.WinUI.csproj'
+$projectXml = [xml](Get-Content -LiteralPath $project -Raw)
+$version = $projectXml.Project.PropertyGroup.Version | Select-Object -First 1
+
+if ([string]::IsNullOrWhiteSpace($version)) { throw "Project version not found in $project" }
+
 $dist = Join-Path $root 'dist'
-$publish = Join-Path $dist 'AMD-BootCamp-Driver-Studio-1.0.0'
-$zip = Join-Path $dist 'AMD-BootCamp-Driver-Studio-1.0.0-win-x64.zip'
+$publish = Join-Path $dist "AMD-BootCamp-Driver-Studio-$version"
+$zip = Join-Path $dist "AMD-BootCamp-Driver-Studio-$version-win-x64.zip"
 
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
