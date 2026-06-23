@@ -14,7 +14,7 @@ This project is currently limited to a specific Boot Camp setup. It is not a uni
 * AMD Radeon Pro 5500M
 * Hardware ID: `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40`
 * Windows 10/11 64-bit through Boot Camp
-* AMD Software: Adrenalin Edition 26.6.1
+* AMD Software: Adrenalin Edition 26.6.1(Binary patch build) / 25.2.1(Original WHQL Anchor)
 
 Other GPUs, Mac models, and driver packages are not currently supported unless a matching verified profile is explicitly added.
 
