@@ -20,6 +20,18 @@ Other GPUs, Mac models, and driver packages are not currently supported unless a
 
 The tool stops before making changes unless the detected hardware ID, package structure, file size, and required SHA-256 hashes match the selected profile.
 
+> **Review Notice**
+>
+> The current 26.6.1 profile uses a local binary-patched and test-signed workflow.
+> This project does not redistribute AMD driver binaries or modified driver packages, but this profile is experimental and is under review for legal, licensing, and security concerns.
+> If this approach is found to be problematic, the profile may be removed or replaced with a non-binary-patched workflow.
+
+> **검토 안내**
+>
+> 현재 26.6.1 프로필은 로컬 바이너리 패치 및 테스트 서명 기반 흐름을 사용합니다.
+> 이 프로젝트는 AMD 드라이버 바이너리나 수정된 드라이버 패키지를 재배포하지 않지만, 해당 프로필은 실험적 기능이며 법적, 라이선스, 보안 측면에서 검토 중입니다.
+> 이 방식에 문제가 있다고 판단될 경우, 해당 프로필은 제거되거나 바이너리 미패치 방식으로 대체될 수 있습니다.
+
 ## Planned / Experimental Support
 
 The following items are planned for a future update and should not be treated as verified support yet:
