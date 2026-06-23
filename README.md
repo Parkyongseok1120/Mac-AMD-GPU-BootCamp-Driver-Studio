@@ -1,12 +1,12 @@
 # Mac-AMD-GPU-BootCamp-Driver-Studio
 
 <img width="1441" height="1076" alt="Image" src="https://github.com/user-attachments/assets/f9c72b55-dbc0-409e-b8f5-3d442fb734c0" />
-<img width="1438" height="933" alt="Image" src="https://github.com/user-attachments/assets/c1804f1c-bc52-4c29-91b5-4613b1f5aabd" />
+<img width="1438" height="933" alt="Image" src="https://github.com/user-attachments/assets/c1804f1c-5aabd" />
 <img width="1602" height="686" alt="Image" src="https://github.com/user-attachments/assets/423029b9-5e2b-42fa-a1cf-1fe5b6afde38" />
 
 AMD Boot Camp Driver Studio is an unofficial utility that prepares, verifies, patches, locally signs, installs, backs up, and restores a newer AMD Radeon RX 5500M-family driver package for the Radeon Pro 5500M found in the 2019 16-inch MacBook Pro.
 
-This project is currently limited to one specific Boot Camp setup. It is not a universal AMD Boot Camp driver package.
+This project is currently limited to a specific Boot Camp setup. It is not a universal AMD Boot Camp driver package.
 
 ## Current Supported Environment
 
@@ -16,7 +16,24 @@ This project is currently limited to one specific Boot Camp setup. It is not a u
 * Windows 10/11 64-bit through Boot Camp
 * AMD Software: Adrenalin Edition 26.6.1
 
-Other GPUs, Mac models, and driver packages are not currently supported. The tool stops before making changes unless the detected hardware ID, package structure, file size, and required SHA-256 hashes match the selected profile.
+Other GPUs, Mac models, and driver packages are not currently supported unless a matching verified profile is explicitly added.
+
+The tool stops before making changes unless the detected hardware ID, package structure, file size, and required SHA-256 hashes match the selected profile.
+
+## Planned / Experimental Support
+
+The following items are planned for a future update and should not be treated as verified support yet:
+
+* Radeon Pro 5300M support and compatibility improvements
+* Improved non-binary-patched AMD Adrenalin 26.6.1 workflow for Radeon Pro 5500M / 5300M
+* UI structure, readability, and user experience improvements
+* Fix for the app freeze that can occur during the backup process after the screen flickers
+* Clear success/failure dialogs after driver installation
+* A dedicated installation guide to make each installation step easier to understand
+
+The current AMD Adrenalin 26.6.1 profile for the Radeon Pro 5500M requires binary patching to work correctly.
+
+A non-binary-patched 26.6.1 test option may be included for testing purposes, but it is currently not expected to work correctly.
 
 ## Project Goal
 
@@ -28,9 +45,11 @@ The project does not redistribute AMD driver binaries or pre-patched driver pack
 
 ## Long-Term Direction
 
-The current release targets only the Radeon Pro 5500M configuration listed above.
+The current verified release targets only the Radeon Pro 5500M configuration listed above.
 
 In the future, this project may add support for additional Intel Mac AMD GPUs or additional AMD driver versions, but only through separate hardware-specific and driver-specific profiles.
+
+Radeon Pro 5300M support is planned, but it will only be marked as supported after real hardware testing and profile validation are completed.
 
 Additional support must not be assumed. A new profile should only be marked as supported when it has been tested on the exact target Mac model, GPU, hardware ID, Windows version, and AMD driver package.
 
@@ -38,9 +57,12 @@ Planned or experimental areas may include:
 
 * Additional verified driver profiles
 * Additional Intel Mac AMD GPU profiles
+* Radeon Pro 5300M compatibility work
+* Improved non-binary-patched installation workflow
 * Read-only GPU/CPU telemetry
 * Safer thermal or VRM-stress reduction presets
 * Windows power profile helpers
+* UI and installation-flow improvements
 
 Low-level hardware tuning, kernel-level CPU controls, undervolting, or ThrottleStop-like features are not part of the current release. If these features are ever explored, they should be separated from the driver installation flow and treated as experimental hardware-control modules.
 
@@ -50,7 +72,7 @@ Low-level hardware tuning, kernel-level CPU controls, undervolting, or ThrottleS
 |---|---|
 | `Verified` | Tested on the exact target hardware and driver package with successful installation, reboot, and basic functionality checks. |
 | `Community Verified` | Confirmed by trusted community testers on the exact target hardware. |
-| `Experimental` | Initial testing has been reported, but stability and recovery behavior are not fully confirmed. |
+| `Experimental` | Initial testing has been reported or a test profile exists, but stability and recovery behavior are not fully confirmed. |
 | `Profile-only` | A profile exists, but it has not been tested on real hardware. |
 | `Unsupported` | No valid profile exists, or the hardware/package is known not to work. |
 
@@ -62,6 +84,7 @@ Only `Verified` or clearly documented `Community Verified` profiles should be tr
 * Verifies installer size and SHA-256
 * Automatically detects extracted `Display` and `Display2` packages
 * Applies Radeon Pro 5500M compatibility patches
+* Uses a profile-based structure for future Radeon Pro 5300M compatibility work
 * Creates a local code-signing certificate
 * Signs the modified kernel driver and catalog locally
 * Backs up and restores existing OEM drivers
@@ -87,6 +110,16 @@ Modifying `amdkmdag.sys` is the most sensitive part of the project because it is
 The tool checks the original SHA-256 hashes before patching and checks the expected patched hashes afterward. If the files do not exactly match the known AMD 26.6.1 profile used by this tool, the process stops.
 
 If a cleaner method is found that avoids modifying the kernel driver binary, that approach is preferred.
+
+### About the Non-Binary-Patched Test Option
+
+A non-binary-patched 26.6.1 path is being investigated because it would be cleaner and safer than modifying kernel driver binaries.
+
+However, the current AMD Adrenalin 26.6.1 Radeon Pro 5500M workflow still requires binary patching to work correctly in testing.
+
+The non-binary-patched option, if present, should be considered experimental and is currently not expected to work properly.
+
+This option is included only to test whether a cleaner WHQL-friendly or certificate-based workflow can be made reliable in the future.
 
 ## Security, Licensing, and Review Status
 
@@ -131,6 +164,14 @@ Only use this tool if you understand the implications of test-signed kernel driv
 8. Restart Windows.
 9. Install the prepared driver.
 10. Restart Windows again and confirm that Device Manager reports no error code.
+
+### Installation Guide Status
+
+The current installation flow may not clearly explain every step inside the application.
+
+A dedicated installation guide is planned for a future update so users can better understand what each stage does and when a restart is required.
+
+Future versions are also planned to show clearer success/failure dialogs after installation.
 
 ## Important Warning
 
@@ -188,6 +229,14 @@ On a clean Windows installation using the Microsoft Basic Display Adapter, no OE
 
 If a prepared driver causes a black screen, boot failure, Device Manager error, or other serious issue, boot into Windows recovery or Safe Mode and remove or roll back the display driver.
 
+### Known Backup Issue
+
+In the current build, the app may become unresponsive during the backup process after the screen flickers.
+
+This issue is planned to be fixed in a future update.
+
+If the application becomes unresponsive during backup, do not repeatedly start the process again without checking whether a backup folder was partially created.
+
 ## Known Risks
 
 This project may cause or contribute to:
@@ -211,6 +260,7 @@ This tool does not:
 * Provide official Boot Camp support
 * Guarantee stability, performance improvements, or game compatibility
 * Support other Mac models or GPUs unless a verified profile is explicitly added
+* Mark Radeon Pro 5300M as verified before real hardware testing is completed
 * Modify firmware or VBIOS
 * Provide current ThrottleStop-like CPU control features
 
@@ -241,241 +291,3 @@ All product names and trademarks belong to their respective owners.
 This repository contains only the helper application and compatibility profiles. It does not contain AMD, Apple, or Microsoft proprietary driver binaries.
 
 ---
-
-# Korean
-
-AMD Boot Camp Driver Studio는 2019 MacBook Pro 16인치의 Radeon Pro 5500M에서 최신 AMD Radeon RX 5500M 계열 드라이버 패키지를 사용할 수 있도록 패키지 검증, 호환성 패치, 로컬 서명, 설치, 백업 및 복원을 지원하는 비공식 도구입니다.
-
-이 프로젝트는 현재 특정 Boot Camp 환경 하나를 대상으로 합니다. 범용 AMD Boot Camp 드라이버 패키지가 아닙니다.
-
-## 현재 지원 환경
-
-* MacBook Pro 16-inch, 2019
-* AMD Radeon Pro 5500M
-* Hardware ID: `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40`
-* Windows 10/11 64-bit through Boot Camp
-* AMD Software: Adrenalin Edition 26.6.1
-
-다른 GPU, Mac 모델, 드라이버 패키지는 현재 지원하지 않습니다. 감지된 하드웨어 ID, 패키지 구조, 파일 크기, SHA-256 해시가 선택된 프로필과 일치하지 않으면 작업은 진행되지 않습니다.
-
-## 프로젝트 목적
-
-이 프로젝트의 목적은 지원이 중단되거나 불완전한 Boot Camp 환경에서 사용할 수 있는 AMD 드라이버 패키지를 사용자의 로컬 환경에서 재현 가능하게 준비하는 것입니다.
-
-반복적인 수동 파일 편집을 줄이고, 프로필 기반 검증, 해시 확인, 로컬 서명, 백업 및 복구 절차를 명확하게 만드는 것을 목표로 합니다.
-
-이 프로젝트는 AMD 드라이버 바이너리나 미리 패치된 드라이버 패키지를 재배포하지 않습니다. 사용자는 AMD 공식 웹사이트에서 원본 AMD 설치 파일을 직접 다운로드해야 합니다.
-
-## 장기 방향
-
-현재 릴리스는 위에 명시된 Radeon Pro 5500M 구성만 대상으로 합니다.
-
-향후에는 일부 Intel Mac AMD GPU 또는 추가 AMD 드라이버 버전을 지원할 수 있습니다. 단, 이 경우에도 하드웨어별, 드라이버 버전별로 분리된 검증 프로필을 통해서만 지원할 예정입니다.
-
-추가 지원은 자동으로 보장되지 않습니다. 새로운 프로필은 정확한 대상 Mac 모델, GPU, 하드웨어 ID, Windows 버전, AMD 드라이버 패키지에서 실제 테스트가 완료된 경우에만 지원 대상으로 표시되어야 합니다.
-
-향후 검토 가능한 영역은 다음과 같습니다.
-
-* 추가 검증 드라이버 프로필
-* 추가 Intel Mac AMD GPU 프로필
-* 읽기 전용 GPU/CPU 텔레메트리
-* VRM 부담을 줄이기 위한 안전한 온도/전력 프리셋
-* Windows 전원 프로필 보조 기능
-
-저수준 하드웨어 튜닝, 커널 레벨 CPU 제어, 언더볼팅, ThrottleStop과 유사한 기능은 현재 릴리스에 포함되어 있지 않습니다. 만약 이런 기능을 검토하더라도 드라이버 설치 흐름과 분리된 실험적 하드웨어 제어 모듈로 다루는 것이 맞다고 봅니다.
-
-## 지원 상태 정의
-
-| 상태 | 의미 |
-|---|---|
-| `Verified` | 정확한 대상 하드웨어와 드라이버 패키지에서 설치, 재부팅, 기본 기능 확인까지 테스트된 상태입니다. |
-| `Community Verified` | 신뢰 가능한 커뮤니티 테스터가 정확한 대상 하드웨어에서 확인한 상태입니다. |
-| `Experimental` | 초기 성공 보고는 있으나 안정성 및 복구 동작이 충분히 확인되지 않은 상태입니다. |
-| `Profile-only` | 프로필은 존재하지만 실제 하드웨어에서 테스트되지 않은 상태입니다. |
-| `Unsupported` | 유효한 프로필이 없거나, 해당 하드웨어/패키지가 동작하지 않는 것으로 확인된 상태입니다. |
-
-`Verified` 또는 명확히 문서화된 `Community Verified` 프로필만 지원 대상으로 간주해야 합니다.
-
-## 주요 기능
-
-* AMD 공식 도메인에서 설치 파일 다운로드
-* 설치 파일 크기 및 SHA-256 검증
-* 압축 해제된 `Display` 및 `Display2` 패키지 자동 감지
-* Radeon Pro 5500M 호환성 패치
-* 로컬 코드서명 인증서 생성
-* 수정된 커널 드라이버 및 카탈로그 로컬 서명
-* 기존 OEM 드라이버 백업 및 복원
-* Windows Update를 통한 자동 드라이버 교체 차단
-* Adrenalin 업데이트 확인 및 알림 비활성화
-* 한국어 및 영어 인터페이스
-* 다운로드 진행률, 속도, 남은 시간 표시
-
-## 왜 바이너리 파일을 수정하나요?
-
-테스트 결과, 이 특정 Radeon Pro 5500M Boot Camp 환경에서는 INF 수정만으로 충분하지 않았습니다.
-
-2019 MacBook Pro의 Radeon Pro 5500M은 Apple 전용 하드웨어 ID를 사용하며, AMD 표준 패키지는 이 Boot Camp 장치를 그대로 지원하도록 만들어진 것이 아닙니다.
-
-현재 프로필은 다음 파일에 호환성 수정을 적용합니다.
-
-1. INF 파일: 정확한 Radeon Pro 5500M 하드웨어 ID를 추가하고, 해당 장치에 대한 패키지 레벨의 제외 설정을 제거합니다.
-2. `amdgcf.dat`: AMD 패키지가 INF 파일 외에도 내부 GPU 구성 데이터를 사용하는 것으로 보이기 때문에 수정합니다.
-3. `amdkmdag.sys`: INF 변경 이후에도 이 특정 패키지가 해당 Boot Camp 하드웨어에서 정상 동작하지 못하게 하는 드라이버 내부 동작이 있는 것으로 보여 수정합니다.
-
-`amdkmdag.sys`는 커널 모드 드라이버이기 때문에 이 파일을 수정하는 부분이 프로젝트에서 가장 민감한 부분입니다. 그래서 이 도구는 AMD 바이너리나 미리 패치된 드라이버 패키지를 재배포하지 않습니다. 사용자가 AMD 공식 설치 파일을 직접 다운로드한 뒤, 그 파일을 로컬 환경에서만 패치합니다.
-
-또한 패치 전에는 원본 SHA-256 해시를 확인하고, 패치 후에는 예상되는 패치 결과 해시를 다시 확인합니다. 파일이 이 도구에서 사용하는 AMD 26.6.1 프로필과 정확히 일치하지 않으면 작업은 중단됩니다.
-
-커널 드라이버 바이너리를 수정하지 않는 더 깔끔한 방법이 발견된다면, 그 방향을 우선하는 것이 맞다고 봅니다.
-
-## 보안, 라이선스, 검토 상태
-
-이 프로젝트는 비공식 프로젝트이며 Apple, AMD, Microsoft와 관련이 없고, 해당 회사들의 승인, 후원, 보증, 지원을 받은 프로젝트가 아닙니다.
-
-현재 방식 중 일부가 법적, 라이선스, 보안, 배포 측면에서 문제가 될 수 있는지 확인 중입니다.
-
-이 프로젝트를 공개한 이유 중 하나는 드라이버 패키징, Windows 보안, AMD 드라이버, Boot Camp에 경험이 있는 분들의 피드백을 받기 위해서입니다. 피드백, 수정할 점, 기술적인 우려 사항은 환영합니다.
-
-만약 프로젝트의 특정 부분이 문제가 된다는 점이 명확해진다면, 해당 부분을 수정하기 전까지 저장소를 임시로 비공개 처리하거나 접근할 수 없도록 할 수 있습니다.
-
-## 사용 순서
-
-이 애플리케이션은 AMD 그래픽 드라이버가 아직 설치되지 않은 깨끗한 Windows 설치 상태에서 사용하는 것을 권장합니다.
-
-Mac의 Secure Boot는 테스트 서명된 드라이버를 차단하므로 비활성화해야 합니다.
-
-또한 이 패치는 사실상 Windows 테스트 모드가 활성화된 상태에서만 동작합니다. AMD 드라이버를 업데이트하거나 테스트 모드를 끄면 패치가 더 이상 유지되지 않을 수 있습니다.
-
-테스트 서명 모드와 Secure Boot 비활성화는 Windows와 Mac 펌웨어가 기본적으로 제공하는 보안 보호 수준을 낮춥니다. 이는 명확한 보안상 타협입니다.
-
-민감한 업무 자료, 회사 데이터, 금융 정보, 엄격한 드라이버 무결성 검사가 필요한 환경에서는 사용을 권장하지 않습니다.
-
-테스트 서명된 커널 드라이버의 의미를 이해하고, 문제가 발생했을 때 직접 복구할 수 있는 경우에만 사용하는 것을 권장합니다.
-
-### Intel Mac에서 Secure Boot 비활성화
-
-* 재부팅하며 Command + R 유지
-* macOS 복구 → 유틸리티 → 시동 보안 유틸리티
-* Secure Boot를 보안 없음(No Security)으로 변경
-* 재부팅하며 Option → Windows 선택
-
-### 드라이버 준비 흐름
-
-1. `AMD-BootCamp-Driver-Studio.exe`를 관리자 권한으로 실행합니다.
-2. Downloads 페이지에서 검증된 AMD 설치 파일을 다운로드합니다.
-3. AMD 압축 해제기를 실행해 패키지를 `C:\AMD`에 압축 해제합니다.
-4. **Detect extracted package**를 선택합니다.
-5. 감지된 패키지를 검증합니다.
-6. 패치 및 로컬 서명된 설치 패키지를 준비합니다.
-7. Windows 테스트 서명 모드를 활성화합니다.
-8. Windows를 재부팅합니다.
-9. 준비된 드라이버를 설치합니다.
-10. 다시 Windows를 재부팅한 뒤 장치 관리자에서 오류 코드가 없는지 확인합니다.
-
-## 중요 경고
-
-준비된 패키지는 수정된 커널 모드 드라이버를 포함합니다. Secure Boot를 비활성화하고 Windows 테스트 서명 모드를 활성화해야 합니다.
-
-테스트 서명 모드는 안티치트 시스템, DRM 소프트웨어, 회사 또는 학교 보안 정책, 엔드포인트 보안 제품, Windows 드라이버 무결성 검사와 충돌할 수 있습니다.
-
-사용에 따른 모든 책임은 사용자 본인에게 있습니다. 그래픽 드라이버, 부팅 설정, 보안 설정을 변경하기 전 중요한 데이터는 반드시 백업하세요.
-
-## AMD 드라이버 다운로드
-
-AMD 드라이버 파일은 이 저장소나 릴리스에 포함되어 있지 않습니다.
-
-사용자는 [AMD 공식 26.6.1 페이지](https://www.amd.com/ko/resources/support-articles/release-notes/RN-RAD-WIN-26-6-1.html#Downloads)에서 직접 설치 파일을 다운로드해야 합니다.
-
-## 배포
-
-이 애플리케이션은 unpackaged WinUI 3 기반이며 Windows App SDK 네이티브 파일과 리소스가 필요합니다.
-
-EXE만 따로 배포하거나 실행하지 마세요. Releases 페이지의 ZIP 전체를 다운로드하고 모든 파일을 압축 해제한 뒤 실행해야 합니다.
-
-AMD 드라이버 바이너리는 이 프로젝트와 함께 재배포하면 안 됩니다.
-
-## 드라이버 프로필 추가
-
-추가 드라이버 버전 또는 하드웨어 구성 지원은 애플리케이션을 다시 빌드하지 않고 JSON 프로필을 통해 추가할 수 있습니다.
-
-각 프로필은 다음을 정의합니다.
-
-* 지원 하드웨어 ID
-* 공식 설치 파일 URL, 크기, SHA-256
-* 패키지 루트 후보
-* 필요한 원본 파일 해시
-* 패치 작업 및 사전 조건
-* 예상되는 패치 후 해시
-* 드라이버 및 카탈로그 경로
-* 레지스트리 설정
-* 지원 상태 및 테스트 기록
-
-정확한 AMD 공식 패키지와 정확한 대상 하드웨어에서 검증된 프로필만 공개해야 합니다.
-
-실제 하드웨어에서 테스트되지 않은 프로필은 `Verified`로 표시하면 안 됩니다.
-
-## 복구
-
-기존 OEM 디스플레이 드라이버가 있는 경우, 이 도구는 교체 전에 해당 드라이버를 내보내 백업합니다.
-
-Backups 페이지에서 다음 작업을 할 수 있습니다.
-
-* 사용 가능한 백업 새로고침
-* 선택한 백업 폴더 열기
-* 이전에 내보낸 드라이버 복원
-
-깨끗한 Windows 설치 상태에서 Microsoft Basic Display Adapter만 사용 중인 경우에는 삭제되거나 백업되는 OEM 드라이버가 없습니다.
-
-준비된 드라이버로 인해 블랙스크린, 부팅 실패, 장치 관리자 오류, 기타 심각한 문제가 발생하면 Windows 복구 환경 또는 안전 모드로 진입해 디스플레이 드라이버를 제거하거나 롤백하세요.
-
-## 알려진 위험
-
-이 프로젝트는 다음 문제를 유발하거나 그 원인이 될 수 있습니다.
-
-* 드라이버 설치 실패
-* Code 43 또는 Code 31 같은 장치 관리자 오류
-* 블랙스크린 또는 디스플레이 출력 문제
-* 블루스크린 또는 시스템 불안정
-* 절전/복귀 문제
-* 게임, DRM, 안티치트 호환성 문제
-* 엔드포인트 보안 소프트웨어와의 충돌
-* Secure Boot 및 기본 드라이버 무결성 보호 상실
-
-## 이 도구가 하지 않는 것
-
-이 도구는 다음을 제공하지 않습니다.
-
-* AMD 드라이버 바이너리 포함
-* 수정된 AMD 드라이버 패키지 배포
-* AMD, Apple, Microsoft의 라이선스 우회
-* 공식 Boot Camp 지원
-* 안정성, 성능 향상, 게임 호환성 보장
-* 검증된 프로필이 없는 다른 Mac 모델 또는 GPU 지원
-* 펌웨어 또는 VBIOS 수정
-* 현재 ThrottleStop과 유사한 CPU 제어 기능
-
-이 도구는 사용자가 AMD 공식 설치 파일을 직접 다운로드한 뒤, 해당 파일을 로컬 환경에서 호환 패키지로 준비하는 것을 돕는 보조 애플리케이션입니다.
-
-## 제작자
-
-제작 과정 및 추가 설명:
-
-[likeitit.tistory.com/210](https://likeitit.tistory.com/210)
-
-## 법적 고지
-
-이 프로젝트는 AMD, Apple, Microsoft의 독점 드라이버 바이너리를 배포하지 않습니다.
-
-사용자는 AMD 공식 웹사이트에서 원본 AMD Software 설치 파일을 직접 다운로드해야 하며, AMD의 라이선스 약관에 동의한 뒤 사용해야 합니다.
-
-이 도구는 사용자가 본인의 컴퓨터에 직접 다운로드한 파일을 로컬 환경에서 처리하는 보조 도구입니다.
-
-이 프로젝트는 Apple, AMD, Microsoft와 관련이 없으며, 해당 회사들의 공식 지원, 보증, 후원 또는 승인을 받은 프로젝트가 아닙니다.
-
-모든 상표, 제품명, 드라이버명, 회사명은 각 소유자의 자산입니다.
-
-## 면책 조항
-
-모든 제품명과 상표는 각 소유자의 자산입니다.
-
-이 저장소에는 보조 애플리케이션과 호환성 프로필만 포함됩니다. AMD, Apple, Microsoft의 독점 드라이버 바이너리는 포함하지 않습니다.
