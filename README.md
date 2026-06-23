@@ -1,4 +1,4 @@
-# Mac-AMD-GPU-BootCamp-Driver-Studio Release 1.1.0
+# Mac AMD GPU BootCamp Driver Studio Release 1.1.0
 
 <img width="1741" height="972" alt="스크린샷 2026-06-23 202959" src="https://github.com/user-attachments/assets/879d88b5-d19f-4f8d-a515-ec1a1a76ae43" />
 
