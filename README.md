@@ -14,7 +14,7 @@ This project is currently limited to a specific Boot Camp setup. It is not a uni
 * AMD Radeon Pro 5500M
 * Hardware ID: `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40`
 * Windows 10/11 64-bit through Boot Camp
-* AMD Software: Adrenalin Edition 25.2.1 (Original WHQL Anchor, Verified) / 26.6.1 (Original 25.2.1 Kernel Hybrid, Experimental)
+* AMD Software: Adrenalin Edition 25.2.1 (Original WHQL Anchor, Verified) / 26.6.4 (Original 25.2.1 Kernel Hybrid, Experimental)
 
 Other GPUs, Mac models, and driver packages are not currently supported unless a matching verified profile is explicitly added.
 
@@ -46,12 +46,12 @@ The following items are planned for a future update and should not be treated as
 * A dedicated installation guide to make each installation step easier to understand
 
 The recommended no-binary-modification path for newer Adrenalin builds is the
-`original-kernel-hybrid` profile: 26.6.1 user-mode files with an original 25.2.1 WHQL kernel.
+`original-kernel-hybrid` profile: **26.6.4** user-mode files with an original 25.2.1 WHQL kernel.
 Package preparation and runtime-file assertions pass offline validation, but the profile remains
-`Experimental` until full reboot, rollback, and clean-install evidence is recorded in
-`docs/HYBRID-E2E-VALIDATION.md`.
+`Experimental` until MS attestation-signed catalog E2E is recorded in
+`docs/HYBRID-E2E-VALIDATION.md`. Local catalog signing fails under TESTSIGNING OFF (`0xC0000428`).
 
-The legacy binary-patch 26.6.1 profile is hidden from the normal UI. INF-only 26.6.1 remains a
+The legacy binary-patch 26.6.1 profile is hidden from the normal UI. INF-only 26.6.x remains a
 diagnostic recipe only and is not expected to boot successfully on the target hardware.
 
 ## Project Goal

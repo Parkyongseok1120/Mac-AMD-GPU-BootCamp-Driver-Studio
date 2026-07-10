@@ -2,9 +2,10 @@
 
 param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-    [ValidateSet('26.6.1', '25.2.1', 'Both')]
-    [string]$Package = 'Both',
+    [ValidateSet('26.6.4', '26.6.1', '25.2.1', 'Both', 'HybridStack')]
+    [string]$Package = 'HybridStack',
     [string]$DestinationRoot = 'C:\AMD',
+    [string]$LocalInstaller2664 = '',
     [string]$LocalInstaller2661 = '',
     [string]$LocalInstaller2521 = ''
 )
@@ -13,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 
 $profiles = @{
+    '26.6.4' = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-original-kernel-hybrid-26.6.4.json'
     '26.6.1' = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-original-kernel-hybrid.json'
     '25.2.1' = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-whql-anchor-25.2.1.json'
 }
@@ -25,7 +27,7 @@ function Get-ProfileInstallerInfo([string]$ProfilePath) {
         Url = [string]$profile.installerUrl
         Sha256 = [string]$profile.installerSha256
         Size = [long]$profile.installerSize
-        ExtractRoot = if ([string]$profile.marketingVersion -eq '26.6.1') {
+        ExtractRoot = if ([string]$profile.marketingVersion -match '^26\.6\.') {
             Join-Path $DestinationRoot 'AMD-Software-Installer'
         } else {
             Join-Path $DestinationRoot 'Official\AMD-25.2.1'
@@ -65,7 +67,7 @@ function Download-VerifiedInstaller($Info, [string]$LocalInstallerPath) {
 
 function Extract-Installer([string]$InstallerPath, [string]$ExtractRoot) {
     $marker = switch -Wildcard ($InstallerPath) {
-        '*26.6.1*' { Join-Path $ExtractRoot 'Packages\Drivers\Display2\WT6A_INF' }
+        '*26.6.*' { Join-Path $ExtractRoot 'Packages\Drivers\Display2\WT6A_INF' }
         default { Join-Path $ExtractRoot 'Packages\Drivers\Display\WT6A_INF' }
     }
     if (Test-Path -LiteralPath $marker) {
@@ -75,17 +77,25 @@ function Extract-Installer([string]$InstallerPath, [string]$ExtractRoot) {
     if (Test-Path -LiteralPath $ExtractRoot) { Remove-Item -LiteralPath $ExtractRoot -Recurse -Force }
     New-Item -ItemType Directory -Path $ExtractRoot -Force | Out-Null
     $process = Start-Process -FilePath $InstallerPath -ArgumentList @('-INSTALL', '-PACKAGEPATH', $ExtractRoot) -Wait -PassThru -WindowStyle Hidden
-    if ($process.ExitCode -ne 0) { throw "Installer extract failed with exit code $($process.ExitCode)" }
+    if ($process.ExitCode -ne 0) { throw "Installer extract failed with exit code $($process.ExitCode). Try GUI extract if CLI fails." }
     if (-not (Test-Path -LiteralPath $marker)) { throw "Expected package root was not created: $marker" }
     Write-Host "EXTRACT_OK=$marker"
     return $marker
 }
 
-$targets = if ($Package -eq 'Both') { @('26.6.1', '25.2.1') } else { @($Package) }
+$targets = switch ($Package) {
+    'Both' { @('26.6.4', '25.2.1') }
+    'HybridStack' { @('26.6.4', '25.2.1') }
+    default { @($Package) }
+}
 $results = @()
 foreach ($version in $targets) {
     $info = Get-ProfileInstallerInfo $profiles[$version]
-    $local = if ($version -eq '26.6.1') { $LocalInstaller2661 } else { $LocalInstaller2521 }
+    $local = switch ($version) {
+        '26.6.4' { $LocalInstaller2664 }
+        '26.6.1' { $LocalInstaller2661 }
+        default { $LocalInstaller2521 }
+    }
     $installer = Download-VerifiedInstaller $info $local
     $packageRoot = Extract-Installer $installer $info.ExtractRoot
     $results += [pscustomobject]@{

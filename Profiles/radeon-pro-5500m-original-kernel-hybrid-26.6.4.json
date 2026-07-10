@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "id": "amd-26.6.4-radeon-pro-5500m-020f106b-original-kernel-hybrid",
+  "displayName": "AMD 26.6.4 — Radeon Pro 5500M (020F106B) [Original 25.2.1 Kernel / No Binary Patch]",
+  "marketingVersion": "26.6.4",
+  "packageVersion": "25.10.43.19",
+  "driverVersion": "32.0.21043.19003",
+  "installationMode": "original-kernel-hybrid",
+  "supportStatus": "Experimental",
+  "kernelDriverModified": false,
+  "infName": "u0202073.inf",
+  "kernelDriverPath": "B026184/amdkmdag.sys",
+  "catalogFile": "amdgpu.cat",
+  "certificateSubject": "CN=Local AMD BootCamp Test Driver",
+  "officialPageUrl": "https://www.amd.com/en/resources/support-articles/release-notes/RN-RAD-WIN-26-6-4.html",
+  "installerUrl": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.4-win11-c.exe",
+  "installerUrls": {
+    "windows10": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.4-win11-c.exe",
+    "windows11": "https://drivers.amd.com/drivers/whql-amd-software-adrenalin-edition-26.6.4-win11-c.exe"
+  },
+  "installerFileName": "whql-amd-software-adrenalin-edition-26.6.4-win11-c.exe",
+  "installerSha256": "60DE4487568E628891BACBAD5984DCC5B1C6496BD045EC4960CD99D00097662F",
+  "installerSize": 1630646888,
+  "packageRootCandidates": [".", "Packages/Drivers/Display2/WT6A_INF", "Packages/Drivers/Display/WT6A_INF"],
+  "supportedHardwareIds": ["PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40"],
+  "files": [
+    { "path": "u0202073.inf", "sha256": "25745D6CF6956618D75B4C73FC799E4582F2E7C323B138B20A54BB0F50F3ACB4", "patchedSha256": "72E95D4E2DB93B96533B58D45B958B7FA6DD81055A831BABCEEE73DC04E854E4" },
+    { "path": "u0202073.cat", "sha256": "654EDB08A9386B11FA231192F7167C0875950771D3DFA527C7E250F0E8156CE0" },
+    { "path": "B026184/amdkmdag.sys", "sha256": "76768F63048A56B978EC03E2997EF94ABA39F5FAAD4423CDBE9A9E3C31A09672" },
+    { "path": "B026184/amdgcf.dat", "sha256": "E79E42B804FF277BD26556E2CBC803EB192CD1DCCAB2D27EE11D26D37869B89A" },
+    { "path": "B026184/amdxx64.dll", "sha256": "43D9ADA5DE2DF85B2BF940B9C889455CE13AD65568AC4F73AD587765EE15BB10" }
+  ],
+  "additionalSources": [
+    {
+      "id": "kernel-anchor-25.2.1",
+      "displayName": "AMD 25.2.1 original kernel anchor",
+      "infName": "u0412654.inf",
+      "packageRootCandidates": [".", "Packages/Drivers/Display/WT6A_INF"],
+      "files": [
+        { "path": "u0412654.inf", "sha256": "4106300E195C080177D5F4D71A291C8978FF50B1511BD0696DE33B171A8ED55B" },
+        { "path": "u0412654.cat", "sha256": "BB1FE286358DE820A09A60B89E666C33CB30A4079540C90043AC2DA78BBF6D69" },
+        { "path": "B412641/amdkmdag.sys", "sha256": "E04E80541F26F2AB76E67EEB5E006E0178C0240F831EE41BB0073E4F91B40799" }
+      ]
+    }
+  ],
+  "sourceFileCopies": [
+    { "sourceId": "kernel-anchor-25.2.1", "sourcePath": "B412641/amdkmdag.sys", "destinationPath": "B026184/amdkmdag.sys", "sha256": "E04E80541F26F2AB76E67EEB5E006E0178C0240F831EE41BB0073E4F91B40799" }
+  ],
+  "runtimeFileAssertions": [
+    { "path": "B026184/amdkmdag.sys", "sha256": "E04E80541F26F2AB76E67EEB5E006E0178C0240F831EE41BB0073E4F91B40799" },
+    { "path": "B026184/amdxx64.dll", "sha256": "43D9ADA5DE2DF85B2BF940B9C889455CE13AD65568AC4F73AD587765EE15BB10" },
+    { "path": "B026184/amdgcf.dat", "sha256": "E79E42B804FF277BD26556E2CBC803EB192CD1DCCAB2D27EE11D26D37869B89A" }
+  ],
+  "patches": [
+    { "type": "TextReplace", "file": "u0202073.inf", "search": "CatalogFile=u0202073.cat", "replacement": "CatalogFile=amdgpu.cat", "expectedOccurrences": 1 },
+    { "type": "TextReplace", "file": "u0202073.inf", "search": "\"%AMD7340.45%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&REV_CF", "replacement": "\"%AMD7340.45%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&REV_CF\r\n\"%AMD7340.46%\" = ati2mtag_Navi14, PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40", "expectedOccurrences": 1 },
+    { "type": "TextReplace", "file": "u0202073.inf", "search": "AMD7340.45 = \"Radeon RX 5300\"", "replacement": "AMD7340.45 = \"Radeon RX 5300\"\r\nAMD7340.46 = \"AMD Radeon Pro 5500M\"", "expectedOccurrences": 1 },
+    { "type": "TextReplace", "file": "u0202073.inf", "search": "ExcludeID = PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B", "replacement": "; Boot Camp override: PCI\\VEN_1002&DEV_7340&SUBSYS_020F106B", "expectedOccurrences": 3 },
+    { "type": "TextReplace", "file": "u0202073.inf", "search": "[ati2mtag_Navi14.HW]\r\nAddReg = atikmdag_MSI_HardwareDeviceSettings\r\n\r\n[ati2mtag_Navi21.HW]", "replacement": "[ati2mtag_Navi14.HW]\r\nAddReg = atikmdag_MSI_HardwareDeviceSettings\r\nAddReg = AMD7340.46.BootCamp.AddReg\r\n\r\n[AMD7340.46.HW]\r\nAddReg = AMD7340.46.BootCamp.AddReg\r\n\r\n[AMD7340.46.BootCamp.AddReg]\r\nHKR,,KMD_BootCampPlatform,0x00010001,1\r\nHKR,,PP_Apple_Bootcamp_Enable,0x00010001,1\r\nHKR,,KMD_EnableDisplayableSupport,0x00010001,0\r\nHKR,,EnableUlps,0x00010001,0\r\nHKR,,PP_GfxOffControl,0x00010001,0\r\nHKR,,DalPSRFeatureEnable,0x00010001,0\r\nHKR,,KMD_EnableBrightnessInterface2,0x00010001,0\r\nHKR,,UseExecuteIndirectPacket,0x00010001,0\r\nHKR,,PP_Falcon_QuickTransition_Enable,0x00010001,1\r\nHKR,,MobileLinkOverCloudAuth_NA,0x00010001,0\r\n\r\n[ati2mtag_Navi21.HW]", "expectedOccurrences": 1 }
+  ],
+  "registrySettings": [
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_BootCampPlatform", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_Apple_Bootcamp_Enable", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableDisplayableSupport", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_Falcon_QuickTransition_Enable", "kind": "DWord", "value": 1 },
+    { "root": "DisplayClass", "subKey": "", "name": "MobileLinkOverCloudAuth_NA", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "EnableUlps", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "PP_GfxOffControl", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "DalPSRFeatureEnable", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "KMD_EnableBrightnessInterface2", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "", "name": "UseExecuteIndirectPacket", "kind": "DWord", "value": 0 },
+    { "root": "DisplayClass", "subKey": "UMD", "name": "ASD_DEF", "kind": "String", "value": "0" },
+    { "root": "DisplayClass", "subKey": "UMD", "name": "SurfaceFormatReplacements_DEF", "kind": "String", "value": "1" }
+  ]
+}
