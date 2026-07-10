@@ -6,7 +6,13 @@ public sealed record PackageAuditResult(
     DriverProfile Profile,
     string PackageRoot,
     IReadOnlyList<(string Path, string Sha256)> Files,
-    bool IsValid);
+    bool IsValid,
+    IReadOnlyDictionary<string, PackageSourceAuditResult>? AdditionalSources = null);
+
+public sealed record PackageSourceAuditResult(
+    PackageSourceDefinition Source,
+    string PackageRoot,
+    IReadOnlyList<(string Path, string Sha256)> Files);
 
 public sealed record PrepareResult(string OutputRoot, string ManifestPath, string CertificateThumbprint);
 

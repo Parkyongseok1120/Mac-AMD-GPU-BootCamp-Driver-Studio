@@ -27,6 +27,12 @@ public sealed class DriverProfile
     public List<PatchOperation> Patches { get; set; } = [];
     public List<RegistrySetting> RegistrySettings { get; set; } = [];
     public bool KernelDriverModified { get; set; } = true;
+    public string InstallationMode { get; set; } = "legacy-binary-patch";
+    public string SupportStatus { get; set; } = "Experimental";
+    public bool IsUserVisible { get; set; } = true;
+    public List<PackageSourceDefinition> AdditionalSources { get; set; } = [];
+    public List<SourceFileCopy> SourceFileCopies { get; set; } = [];
+    public List<RuntimeFileAssertion> RuntimeFileAssertions { get; set; } = [];
 
     [JsonIgnore]
     public string SourcePath { get; set; } = string.Empty;
@@ -61,6 +67,17 @@ public sealed class DriverProfile
     [JsonIgnore]
     public bool HasInstallerForCurrentWindows => !string.IsNullOrWhiteSpace(ResolveInstallerUrl());
 
+    [JsonIgnore]
+    public bool UsesBinaryPatch => KernelDriverModified ||
+        Patches.Any(x => x.Type.StartsWith("Binary", StringComparison.OrdinalIgnoreCase));
+
+    [JsonIgnore]
+    public bool IsNoBinaryPatchRecipe => !UsesBinaryPatch &&
+        InstallationMode is "inf-only" or "original-kernel-hybrid" or "whql-anchor";
+
+    [JsonIgnore]
+    public bool RequiresAdditionalSource => AdditionalSources.Count > 0;
+
     public override string ToString() => DisplayName;
 }
 
@@ -75,6 +92,7 @@ public sealed class AppSettings
     public string PreparedFolder { get; set; } = string.Empty;
     public string PreparedProfileId { get; set; } = string.Empty;
     public string LastDownloadedInstaller { get; set; } = string.Empty;
+    public Dictionary<string, string> AdditionalSourceFolders { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class FileRule
@@ -82,6 +100,29 @@ public sealed class FileRule
     public string Path { get; set; } = string.Empty;
     public string Sha256 { get; set; } = string.Empty;
     public string? PatchedSha256 { get; set; }
+}
+
+public sealed class PackageSourceDefinition
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string InfName { get; set; } = string.Empty;
+    public List<string> PackageRootCandidates { get; set; } = ["."];
+    public List<FileRule> Files { get; set; } = [];
+}
+
+public sealed class SourceFileCopy
+{
+    public string SourceId { get; set; } = string.Empty;
+    public string SourcePath { get; set; } = string.Empty;
+    public string DestinationPath { get; set; } = string.Empty;
+    public string Sha256 { get; set; } = string.Empty;
+}
+
+public sealed class RuntimeFileAssertion
+{
+    public string Path { get; set; } = string.Empty;
+    public string Sha256 { get; set; } = string.Empty;
 }
 
 public sealed class PatchOperation

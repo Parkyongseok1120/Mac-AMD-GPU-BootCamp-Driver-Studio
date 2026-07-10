@@ -1,10 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "amd-26.6.1-radeon-pro-5500m-020f106b-textonly",
   "displayName": "AMD 26.6.1 — Radeon Pro 5500M (020F106B) [No Binary Patch / TESTSIGNING OFF Test]",
   "marketingVersion": "26.6.1",
   "packageVersion": "25.10.43.12",
   "driverVersion": "32.0.21043.12001",
+  "installationMode": "inf-only",
+  "supportStatus": "Experimental",
   "kernelDriverModified": false,
   "infName": "u0201163.inf",
   "kernelDriverPath": "B026079/amdkmdag.sys",
@@ -36,7 +38,15 @@
     {
       "path": "B026079/amdkmdag.sys",
       "sha256": "79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7"
+    },
+    {
+      "path": "B026079/amdgcf.dat",
+      "sha256": "D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A"
     }
+  ],
+  "runtimeFileAssertions": [
+    { "path": "B026079/amdkmdag.sys", "sha256": "79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7" },
+    { "path": "B026079/amdgcf.dat", "sha256": "D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A" }
   ],
   "patches": [
     {

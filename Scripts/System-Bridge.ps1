@@ -208,6 +208,55 @@ function Set-UpdateBlocks {
     }
 }
 
+function Get-CurrentDriverService($Gpu) {
+    try { return (Get-PnpDeviceProperty -InstanceId $Gpu.PNPDeviceID -KeyName 'DEVPKEY_Device_Service' -ErrorAction Stop).Data }
+    catch {
+        $driverKey = Get-DriverKey $Gpu
+        if ([string]::IsNullOrWhiteSpace($driverKey)) { return '' }
+        return (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Class\$driverKey" -ErrorAction Stop).Service
+    }
+}
+
+function Assert-ActiveRuntimeFiles($Gpu) {
+    if ($null -eq $profile.runtimeFileAssertions -or @($profile.runtimeFileAssertions).Count -eq 0) { return }
+
+    $service = [string](Get-CurrentDriverService $Gpu)
+    if ([string]::IsNullOrWhiteSpace($service)) { throw 'The active display driver service could not be resolved.' }
+    $imagePath = [string](Get-ItemPropertyValue "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name ImagePath)
+    $kernelPath = $imagePath -replace '^\\SystemRoot', $env:windir
+    if (-not (Test-Path -LiteralPath $kernelPath)) { throw "The active display kernel is missing: $kernelPath" }
+    $driverStoreRoot = Split-Path -Parent (Split-Path -Parent $kernelPath)
+
+    foreach ($assertion in $profile.runtimeFileAssertions) {
+        $file = Resolve-SafeChild $driverStoreRoot ([string]$assertion.path)
+        if (-not (Test-Path -LiteralPath $file)) { throw "Expected active runtime file is missing: $file" }
+        $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        if ($actual -ne [string]$assertion.sha256) {
+            throw "Active runtime file hash mismatch for $($assertion.path). Expected=$($assertion.sha256) Actual=$actual"
+        }
+        Write-Output "RUNTIME_FILE_OK=$($assertion.path)=$actual"
+    }
+}
+
+function Restore-ExportedDisplayDriver([string]$BackupFolder) {
+    $restoreInf = Get-ChildItem -LiteralPath $BackupFolder -Filter '*.inf' -File -Recurse |
+        Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'DEV_7340' -Quiet } |
+        Select-Object -First 1
+    if (-not $restoreInf) { throw "No Radeon Pro 5500M INF was found in rollback backup: $BackupFolder" }
+
+    $restoreGpu = Require-Gpu
+    $activeInf = Get-CurrentInf $restoreGpu
+    if (-not [string]::IsNullOrWhiteSpace([string]$activeInf) -and $activeInf -match '^oem\d+\.inf$') {
+        & pnputil.exe /delete-driver $activeInf /uninstall /force | Out-Null
+        if ($LASTEXITCODE -notin @(0, 3010)) { throw "Rollback removal failed with exit code $LASTEXITCODE" }
+    }
+    & pnputil.exe /add-driver $restoreInf.FullName /install | Out-Null
+    if ($LASTEXITCODE -notin @(0, 3010)) { throw "Rollback installation failed with exit code $LASTEXITCODE" }
+    $registry = Join-Path $BackupFolder 'display-class.reg'
+    if (Test-Path -LiteralPath $registry) { & reg.exe import $registry | Out-Null }
+    Write-Output "ROLLBACK=Restored:$BackupFolder"
+}
+
 if ($Action -eq 'Status') {
     $gpu = Get-Gpu
     $secureBoot = Test-SecureBoot
@@ -344,35 +393,56 @@ if ($Action -eq 'Install') {
         Write-Output "BACKUP=SkippedNoPreviousOemDriver:$currentInf"
     }
 
-    if ($currentIsOem) {
-        Write-Output "DRIVER_REMOVE=$currentInf"
-        & pnputil.exe /delete-driver $currentInf /uninstall /force | Out-Null
-        if ($LASTEXITCODE -notin @(0, 3010)) { throw "Driver removal failed with exit code $LASTEXITCODE" }
-    }
-    $inf = Resolve-SafeChild $PackageRoot ([string]$profile.infName)
-    Write-Output "DRIVER_INSTALL=$inf"
-    & pnputil.exe /add-driver $inf /install | Out-Null
-    if ($LASTEXITCODE -notin @(0, 3010)) { throw "Driver installation failed with exit code $LASTEXITCODE" }
+    $driverRemoved = $false
+    try {
+        if ($currentIsOem) {
+            Write-Output "DRIVER_REMOVE=$currentInf"
+            & pnputil.exe /delete-driver $currentInf /uninstall /force | Out-Null
+            if ($LASTEXITCODE -notin @(0, 3010)) { throw "Driver removal failed with exit code $LASTEXITCODE" }
+            $driverRemoved = $true
+        }
+        $inf = Resolve-SafeChild $PackageRoot ([string]$profile.infName)
+        Write-Output "DRIVER_INSTALL=$inf"
+        & pnputil.exe /add-driver $inf /install | Out-Null
+        if ($LASTEXITCODE -notin @(0, 3010)) { throw "Driver installation failed with exit code $LASTEXITCODE" }
 
-    $expectedVersion = [string]$profile.driverVersion
-    $activeVersion = ''
-    for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        Start-Sleep -Seconds 1
-        $gpu = Require-Gpu
-        $activeVersion = [string](Get-CurrentDriverVersion $gpu)
-        if ($activeVersion -eq $expectedVersion) { break }
+        $expectedVersion = [string]$profile.driverVersion
+        $activeVersion = ''
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            Start-Sleep -Seconds 1
+            $gpu = Require-Gpu
+            $activeVersion = [string](Get-CurrentDriverVersion $gpu)
+            if ($activeVersion -eq $expectedVersion) { break }
+        }
+        if ($activeVersion -ne $expectedVersion) {
+            throw "The newly installed driver did not become active. Expected $expectedVersion, active $activeVersion"
+        }
+        $problemCode = [uint32]$gpu.ConfigManagerErrorCode
+        if ($problemCode -ne 0) { throw "The newly installed driver reported Device Manager problem code $problemCode" }
+        Initialize-DisplayClassPaths $gpu
+        Write-Output "ACTIVE_DRIVER_VERSION=$activeVersion"
+        Assert-ActiveRuntimeFiles $gpu
+        Write-Output 'RUNTIME_FILES=Verified'
+        Apply-ProfileRegistry
+        Write-Output 'PROFILE_REGISTRY=Applied'
+        Set-UpdateBlocks
+        Write-Output 'UPDATE_POLICIES=Applied'
+        Write-Output "BACKUP=$(if ($backup) { $backup } else { 'NONE' })"
+        exit 0
     }
-    if ($activeVersion -ne $expectedVersion) {
-        throw "The newly installed driver did not become active. Expected $expectedVersion, active $activeVersion"
+    catch {
+        $installError = $_.Exception
+        if ($driverRemoved -and $backup) {
+            try {
+                Write-Output "ROLLBACK=Started:$backup"
+                Restore-ExportedDisplayDriver $backup
+            }
+            catch {
+                Write-Output "ROLLBACK=Failed:$($_.Exception.Message)"
+            }
+        }
+        throw $installError
     }
-    Initialize-DisplayClassPaths $gpu
-    Write-Output "ACTIVE_DRIVER_VERSION=$activeVersion"
-    Apply-ProfileRegistry
-    Write-Output 'PROFILE_REGISTRY=Applied'
-    Set-UpdateBlocks
-    Write-Output 'UPDATE_POLICIES=Applied'
-    Write-Output "BACKUP=$(if ($backup) { $backup } else { 'NONE' })"
-    exit 0
 }
 
 if ($Action -eq 'Restore') {

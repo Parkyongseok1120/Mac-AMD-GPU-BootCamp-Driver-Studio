@@ -50,14 +50,16 @@ public sealed class ProfileCatalog
         }
         return byId.Values
             .OrderByDescending(x => x.MarketingVersion)
-            .ThenBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .ThenBy(x => x.InstallationMode.Equals("original-kernel-hybrid", StringComparison.OrdinalIgnoreCase) ? 0 :
+                x.InstallationMode.Equals("inf-only", StringComparison.OrdinalIgnoreCase) ? 1 :
+                ProfileUsesBinaryPatch(x) ? 99 : 2)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
     public static void Validate(DriverProfile profile)
     {
-        if (profile.SchemaVersion != 1) throw new InvalidDataException($"Unsupported schema: {profile.SchemaVersion}");
+        if (profile.SchemaVersion is not (1 or 2)) throw new InvalidDataException($"Unsupported schema: {profile.SchemaVersion}");
         if (string.IsNullOrWhiteSpace(profile.Id) || string.IsNullOrWhiteSpace(profile.InfName))
             throw new InvalidDataException("Profile ID and INF name are required.");
         if (profile.SupportedHardwareIds.Count == 0 || profile.Files.Count == 0)
@@ -71,6 +73,53 @@ public sealed class ProfileCatalog
             EnsureSafeRelativePath(path);
         }
 
+        var allowedModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "legacy-binary-patch", "inf-only", "original-kernel-hybrid", "whql-anchor"
+        };
+        if (!allowedModes.Contains(profile.InstallationMode))
+            throw new InvalidDataException($"Unknown installation mode: {profile.InstallationMode}");
+
+        var sourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in profile.AdditionalSources)
+        {
+            if (string.IsNullOrWhiteSpace(source.Id) || !sourceIds.Add(source.Id) ||
+                string.IsNullOrWhiteSpace(source.InfName) || source.Files.Count == 0)
+                throw new InvalidDataException("Each additional package source needs a unique ID, INF name, and file rules.");
+            EnsureSafeRelativePath(source.InfName);
+            foreach (var path in source.Files.Select(x => x.Path)) EnsureSafeRelativePath(path);
+            foreach (var file in source.Files)
+            {
+                if (file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit))
+                    throw new InvalidDataException($"Invalid SHA-256 for source {source.Id}/{file.Path}");
+            }
+        }
+
+        foreach (var copy in profile.SourceFileCopies)
+        {
+            if (!sourceIds.Contains(copy.SourceId))
+                throw new InvalidDataException($"Unknown source ID in copy rule: {copy.SourceId}");
+            EnsureSafeRelativePath(copy.SourcePath);
+            EnsureSafeRelativePath(copy.DestinationPath);
+            if (copy.Sha256.Length != 64 || !copy.Sha256.All(Uri.IsHexDigit))
+                throw new InvalidDataException($"Invalid SHA-256 for copied source file: {copy.SourcePath}");
+        }
+
+        foreach (var assertion in profile.RuntimeFileAssertions)
+        {
+            EnsureSafeRelativePath(assertion.Path);
+            if (assertion.Sha256.Length != 64 || !assertion.Sha256.All(Uri.IsHexDigit))
+                throw new InvalidDataException($"Invalid runtime assertion hash: {assertion.Path}");
+        }
+
+        if (profile.InstallationMode is "inf-only" or "original-kernel-hybrid")
+        {
+            if (profile.UsesBinaryPatch)
+                throw new InvalidDataException($"{profile.InstallationMode} must not contain a binary patch or a modified kernel driver.");
+        }
+        if (profile.InstallationMode == "original-kernel-hybrid" &&
+            (profile.AdditionalSources.Count == 0 || profile.SourceFileCopies.Count == 0))
+            throw new InvalidDataException("An original-kernel-hybrid profile requires an additional source and explicit copy rules.");
         foreach (var file in profile.Files)
         {
             if (file.Sha256.Length != 64 || !file.Sha256.All(Uri.IsHexDigit))

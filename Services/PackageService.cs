@@ -20,7 +20,8 @@ public sealed class PackageService
         DriverProfile profile,
         string selectedPath,
         IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? supplementalSourcePaths = null)
     {
         var root = ResolvePackageRoot(profile, selectedPath);
         var results = new List<(string Path, string Sha256)>();
@@ -37,7 +38,39 @@ public sealed class PackageService
             progress?.Report((index + 1d) / profile.Files.Count);
             _log.Info($"Verified {rule.Path}: {hash}");
         }
-        return new PackageAuditResult(profile, root, results, true);
+        var additionalSources = await AuditAdditionalSourcesAsync(profile, supplementalSourcePaths, cancellationToken);
+        return new PackageAuditResult(profile, root, results, true, additionalSources);
+    }
+
+    private async Task<IReadOnlyDictionary<string, PackageSourceAuditResult>> AuditAdditionalSourcesAsync(
+        DriverProfile profile,
+        IReadOnlyDictionary<string, string>? sourcePaths,
+        CancellationToken cancellationToken)
+    {
+        if (profile.AdditionalSources.Count == 0) return new Dictionary<string, PackageSourceAuditResult>();
+        if (sourcePaths is null) throw new InvalidOperationException("The selected installation recipe requires an additional official AMD package.");
+
+        var results = new Dictionary<string, PackageSourceAuditResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in profile.AdditionalSources)
+        {
+            if (!sourcePaths.TryGetValue(source.Id, out var selectedPath) || string.IsNullOrWhiteSpace(selectedPath))
+                throw new InvalidOperationException($"Select the official package folder for {source.DisplayName}.");
+            var root = ResolvePackageRoot(source, selectedPath);
+            var files = new List<(string Path, string Sha256)>();
+            foreach (var rule in source.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var file = ProfileCatalog.SafeCombine(root, rule.Path);
+                if (!File.Exists(file)) throw new FileNotFoundException($"Required source package file is missing: {rule.Path}", file);
+                var hash = await ComputeSha256Async(file, cancellationToken);
+                if (!hash.Equals(rule.Sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException($"SHA-256 mismatch for {source.DisplayName}/{rule.Path}. Expected {rule.Sha256}, actual {hash}.");
+                files.Add((rule.Path, hash));
+                _log.Info($"Verified {source.DisplayName}/{rule.Path}: {hash}");
+            }
+            results.Add(source.Id, new PackageSourceAuditResult(source, root, files));
+        }
+        return results;
     }
 
     public IReadOnlyList<string> DiscoverPackageRoots(DriverProfile profile, IEnumerable<string> searchRoots)
@@ -97,6 +130,21 @@ public sealed class PackageService
         _log.Info($"Copying package to {destination}");
         await CopyDirectoryAsync(audit.PackageRoot, destination, progress, cancellationToken);
 
+        foreach (var copy in audit.Profile.SourceFileCopies)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (audit.AdditionalSources is null || !audit.AdditionalSources.TryGetValue(copy.SourceId, out var sourceAudit))
+                throw new InvalidOperationException($"The audited package source '{copy.SourceId}' is required for this recipe.");
+            var source = ProfileCatalog.SafeCombine(sourceAudit.PackageRoot, copy.SourcePath);
+            var sourceHash = await ComputeSha256Async(source, cancellationToken);
+            if (!sourceHash.Equals(copy.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Copied source hash changed: {copy.SourceId}/{copy.SourcePath}");
+            var target = ProfileCatalog.SafeCombine(destination, copy.DestinationPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(source, target, true);
+            _log.Info($"Copied original file from {copy.SourceId}/{copy.SourcePath} to {copy.DestinationPath}");
+        }
+
         await Task.Run(() =>
         {
             for (var i = 0; i < audit.Profile.Patches.Count; i++)
@@ -115,6 +163,8 @@ public sealed class PackageService
                 throw new InvalidDataException($"Patched SHA-256 mismatch for {rule.Path}. Expected {rule.PatchedSha256}, actual {hash}.");
         }
 
+        await ValidateRuntimeFileAssertionsAsync(audit.Profile, destination, cancellationToken);
+
         var manifestPath = Path.Combine(destination, "BootCampStudio.manifest.json");
         var manifest = new
         {
@@ -125,7 +175,11 @@ public sealed class PackageService
             audit.Profile.DriverVersion,
             HardwareIds = audit.Profile.SupportedHardwareIds,
             PreparedAt = DateTimeOffset.Now,
-            SourceHashes = audit.Files.ToDictionary(x => x.Path, x => x.Sha256)
+            SourceHashes = audit.Files.ToDictionary(x => x.Path, x => x.Sha256),
+            AdditionalSourceHashes = audit.AdditionalSources?.ToDictionary(
+                x => x.Key, x => x.Value.Files.ToDictionary(y => y.Path, y => y.Sha256)),
+            audit.Profile.InstallationMode,
+            SourceFileCopies = audit.Profile.SourceFileCopies
         };
         await File.WriteAllTextAsync(manifestPath,
             JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
@@ -167,6 +221,7 @@ public sealed class PackageService
             if (!hash.Equals(rule.PatchedSha256, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException($"Prepared file validation failed: {rule.Path}");
         }
+        await ValidateRuntimeFileAssertionsAsync(profile, root, cancellationToken);
         var validateArgs = new List<string>
         {
             "-ValidateOnly",
@@ -192,6 +247,34 @@ public sealed class PackageService
             if (File.Exists(Path.Combine(root, profile.InfName))) return root;
         }
         throw new DirectoryNotFoundException($"No package root matching profile {profile.Id} was found below {basePath}.");
+    }
+
+    private static string ResolvePackageRoot(PackageSourceDefinition source, string selectedPath)
+    {
+        if (string.IsNullOrWhiteSpace(selectedPath)) throw new ArgumentException($"Select an AMD package folder for {source.DisplayName}.");
+        var basePath = File.Exists(selectedPath) ? Path.GetDirectoryName(selectedPath)! : selectedPath;
+        if (!Directory.Exists(basePath)) throw new DirectoryNotFoundException(basePath);
+        foreach (var candidate in source.PackageRootCandidates)
+        {
+            var root = Path.GetFullPath(Path.Combine(basePath, candidate.Replace('/', Path.DirectorySeparatorChar)));
+            if (File.Exists(Path.Combine(root, source.InfName))) return root;
+        }
+        throw new DirectoryNotFoundException($"No package root matching source {source.DisplayName} was found below {basePath}.");
+    }
+
+    private static async Task ValidateRuntimeFileAssertionsAsync(
+        DriverProfile profile,
+        string root,
+        CancellationToken cancellationToken)
+    {
+        foreach (var assertion in profile.RuntimeFileAssertions)
+        {
+            var path = ProfileCatalog.SafeCombine(root, assertion.Path);
+            if (!File.Exists(path)) throw new FileNotFoundException($"Expected runtime file is missing: {assertion.Path}", path);
+            var hash = await ComputeSha256Async(path, cancellationToken);
+            if (!hash.Equals(assertion.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Runtime file assertion failed: {assertion.Path}. Expected {assertion.Sha256}, actual {hash}.");
+        }
     }
 
     private void ApplyPatch(string root, PatchOperation operation)

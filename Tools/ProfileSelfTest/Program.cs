@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 using AMD.BootCamp.WinUI.Models;
 using AMD.BootCamp.WinUI.Services;
 
-if (args.Length is < 2 or > 3)
+if (args.Length is < 2 or > 4)
 {
-    Console.Error.WriteLine("Usage: ProfileSelfTest <profile.json> <official-package-folder> [verified-installer-folder]");
+    Console.Error.WriteLine("Usage: ProfileSelfTest <profile.json> <official-package-folder> [additional-official-package-folder] [verified-installer-folder]");
     return 2;
 }
 
@@ -17,6 +17,16 @@ var profile = JsonSerializer.Deserialize<DriverProfile>(
               ?? throw new InvalidDataException("Profile JSON is empty.");
 ProfileCatalog.Validate(profile);
 profile.SourcePath = profilePath;
+
+var additionalSourcePaths = profile.RequiresAdditionalSource
+    ? args.Length >= 3
+        ? profile.AdditionalSources.ToDictionary(
+            source => source.Id,
+            _ => Path.GetFullPath(args[2]),
+            StringComparer.OrdinalIgnoreCase)
+        : throw new InvalidDataException("This profile requires an additional official package folder.")
+    : null;
+var installerFolderArgumentIndex = profile.RequiresAdditionalSource ? 3 : 2;
 
 var scratch = Path.Combine(Path.GetTempPath(), $"AMD-BootCamp-ProfileTest-{Guid.NewGuid():N}");
 var extractedRoot = Path.Combine(scratch, "extracted");
@@ -40,7 +50,7 @@ try
     if (!discovered.Contains(minimalSource, StringComparer.OrdinalIgnoreCase))
         throw new InvalidDataException("Fresh AMD extraction package discovery self-test failed.");
     Console.WriteLine("PACKAGE_DISCOVERY_TEST=PASS");
-    var audit = await packages.AuditAsync(profile, minimalSource);
+    var audit = await packages.AuditAsync(profile, minimalSource, supplementalSourcePaths: additionalSourcePaths);
     var result = await packages.PrepareUnsignedForValidationAsync(audit, prepared);
 
     Console.WriteLine($"SELF_TEST=PASS");
@@ -74,9 +84,9 @@ try
         throw new InvalidDataException("Concurrent download stream self-test failed.");
     Console.WriteLine("DOWNLOAD_STREAM_TEST=PASS");
 
-    if (args.Length == 3)
+    if (args.Length > installerFolderArgumentIndex)
     {
-        var installerFolder = Path.GetFullPath(args[2]);
+        var installerFolder = Path.GetFullPath(args[installerFolderArgumentIndex]);
         var installerCandidate = Path.Combine(installerFolder, profile.InstallerFileName);
         if (File.Exists(installerCandidate))
         {

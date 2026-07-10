@@ -414,7 +414,7 @@ public sealed partial class MainWindow : Window
             .Where(x => x.HasInstallerForCurrentWindows)
             .GroupBy(x => $"{x.InstallerFileName}|{x.InstallerSha256}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group
-                .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+                .OrderBy(ProfileSelectionPriority)
                 .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .First())
             .OrderByDescending(x => x.MarketingVersion, StringComparer.OrdinalIgnoreCase)
@@ -425,6 +425,12 @@ public sealed partial class MainWindow : Window
     {
         var folder = SelectFolder(SourcePathBox.Text, _localization["package.source"]);
         if (folder is not null) SourcePathBox.Text = folder;
+    }
+
+    private void BrowseAdditionalSourceButton_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = SelectFolder(AdditionalSourcePathBox.Text, AdditionalSourceLabel.Text);
+        if (folder is not null) AdditionalSourcePathBox.Text = folder;
     }
 
     private void BrowseDownloadFolderButton_Click(object sender, RoutedEventArgs e)
@@ -578,7 +584,8 @@ public sealed partial class MainWindow : Window
             {
                 try
                 {
-                    _audit = await _packages.AuditAsync(profile, candidate, cancellationToken: ct);
+                    _audit = await _packages.AuditAsync(profile, candidate, cancellationToken: ct,
+                        supplementalSourcePaths: GetSupplementalSourcePaths(profile));
                     SourcePathBox.Text = _audit.PackageRoot;
                     _settings.SourceFolder = _audit.PackageRoot;
                     await _settingsService.SaveAsync(_settings, ct);
@@ -626,6 +633,14 @@ public sealed partial class MainWindow : Window
         _settings.PreparedFolder = _preparedRoot ?? _settings.PreparedFolder;
         _settings.PreparedProfileId = _preparedRoot is null ? _settings.PreparedProfileId : SelectedProfile?.Id ?? string.Empty;
         _settings.LastDownloadedInstaller = _lastDownloadedInstaller ?? _settings.LastDownloadedInstaller;
+        if (SelectedProfile is { } profile)
+        {
+            foreach (var source in profile.AdditionalSources)
+            {
+                if (!string.IsNullOrWhiteSpace(AdditionalSourcePathBox.Text))
+                    _settings.AdditionalSourceFolders[source.Id] = AdditionalSourcePathBox.Text.Trim();
+            }
+        }
         BlockWindowsUpdateToggle.IsOn = _settings.BlockWindowsUpdateDrivers;
         SuppressAdrenalinToggle.IsOn = _settings.SuppressAdrenalinUpdates;
         await _settingsService.SaveAsync(_settings, cancellationToken);
@@ -639,10 +654,13 @@ public sealed partial class MainWindow : Window
             var gpus = await _hardware.DetectGpusAsync(ct);
             var gpu = HardwareService.RequireSupported(gpus, profile);
             var progress = new Progress<double>(v => OperationProgress.Value = v * 100);
-            _audit = await _packages.AuditAsync(profile, SourcePathBox.Text.Trim(), progress, ct);
+            _audit = await _packages.AuditAsync(profile, SourcePathBox.Text.Trim(), progress, ct,
+                GetSupplementalSourcePaths(profile));
             AuditResultText.Text = _localization["package.verified"];
-            AuditDetailText.Text = $"{gpu.Name}\n{_audit.PackageRoot}\n{_audit.Files.Count} files · SHA-256 OK";
+            var additionalFileCount = _audit.AdditionalSources?.Values.Sum(x => x.Files.Count) ?? 0;
+            AuditDetailText.Text = $"{gpu.Name}\n{_audit.PackageRoot}\n{_audit.Files.Count} base files + {additionalFileCount} additional files · SHA-256 OK";
             ShowStatus(_localization["message.auditSuccess"], InfoBarSeverity.Success);
+            MainNavigation.SelectedItem = PrepareNav;
         });
     }
 
@@ -657,7 +675,8 @@ public sealed partial class MainWindow : Window
         {
             var profile = RequireProfile();
             var progress = new Progress<double>(v => OperationProgress.Value = v * 100);
-            _audit = await _packages.AuditAsync(profile, SourcePathBox.Text.Trim(), progress, ct);
+            _audit = await _packages.AuditAsync(profile, SourcePathBox.Text.Trim(), progress, ct,
+                GetSupplementalSourcePaths(profile));
             var result = await _packages.PrepareAsync(_audit, OutputPathBox.Text.Trim(), progress, ct);
             _preparedRoot = result.OutputRoot;
             PreparedRootText.Text = result.OutputRoot;
@@ -666,6 +685,7 @@ public sealed partial class MainWindow : Window
             _settings.SourceFolder = _audit.PackageRoot;
             await _settingsService.SaveAsync(_settings, ct);
             ShowStatus(_localization["message.prepareSuccess"], InfoBarSeverity.Success);
+            MainNavigation.SelectedItem = InstallNav;
         });
     }
 
@@ -802,19 +822,13 @@ public sealed partial class MainWindow : Window
         var installProfile = _loadedProfiles
             .Where(x => x.InstallerFileName.Equals(downloadProfile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
                         x.InstallerSha256.Equals(downloadProfile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .OrderBy(ProfileSelectionPriority)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         SelectProfile(installProfile ?? downloadProfile);
     }
 
-    private List<DriverProfile> GetInstallProfilesFor(DriverProfile profile) =>
-        _loadedProfiles
-            .Where(x => x.InstallerFileName.Equals(profile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
-                        x.InstallerSha256.Equals(profile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
-            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    private List<DriverProfile> GetInstallProfilesFor(DriverProfile profile) => [profile];
 
     private void UpdateProfileCardText(DriverProfile profile)
     {
@@ -832,6 +846,19 @@ public sealed partial class MainWindow : Window
         {
             ProfileStatusText.Text = profile.DisplayName;
             OutputPathBox.Text = $"C:\\AMD\\BootCampDriverStudio\\Prepared\\AMD-{profile.MarketingVersion}-{profile.Id.Split('-').Last()}";
+            AdditionalSourcePanel.Visibility = profile.RequiresAdditionalSource ? Visibility.Visible : Visibility.Collapsed;
+            if (profile.RequiresAdditionalSource)
+            {
+                var source = profile.AdditionalSources[0];
+                AdditionalSourceLabel.Text = $"Additional official AMD package: {source.DisplayName}";
+                AdditionalSourcePathBox.Text = _settings.AdditionalSourceFolders.TryGetValue(source.Id, out var saved)
+                    ? saved
+                    : string.Empty;
+            }
+            else
+            {
+                AdditionalSourcePathBox.Text = string.Empty;
+            }
         }
         UpdateProfileModeUi();
     }
@@ -872,7 +899,16 @@ public sealed partial class MainWindow : Window
                 true);
         }
 
-        if (profile.Id.Contains("textonly", StringComparison.OrdinalIgnoreCase))
+        if (profile.InstallationMode.Equals("original-kernel-hybrid", StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "Original-kernel hybrid (TESTSIGNING OFF experiment)",
+                "Uses 26.6.1 user-mode files with an untouched original 25.2.1 AMD kernel. It never patches a driver binary, but it is experimental and requires both official packages.",
+                "I understand that this experimental path replaces the 26.6.1 kernel with an unmodified original 25.2.1 AMD kernel and verifies both source hashes.",
+                false);
+        }
+
+        if (profile.InstallationMode.Equals("inf-only", StringComparison.OrdinalIgnoreCase))
         {
             return (
                 _localization["install.mode.textOnly.title"],
@@ -888,9 +924,25 @@ public sealed partial class MainWindow : Window
             false);
     }
 
-    private static bool ProfileUsesBinaryPatch(DriverProfile profile) =>
-        profile.KernelDriverModified ||
-        profile.Patches.Any(p => p.Type.StartsWith("Binary", StringComparison.OrdinalIgnoreCase));
+    private static bool ProfileUsesBinaryPatch(DriverProfile profile) => profile.UsesBinaryPatch;
+
+    private static int ProfileSelectionPriority(DriverProfile profile) => profile.InstallationMode switch
+    {
+        "whql-anchor" => 0,
+        "original-kernel-hybrid" => 1,
+        "inf-only" => 2,
+        _ when profile.UsesBinaryPatch => 99,
+        _ => 50
+    };
+
+    private IReadOnlyDictionary<string, string>? GetSupplementalSourcePaths(DriverProfile profile)
+    {
+        if (!profile.RequiresAdditionalSource) return null;
+        return profile.AdditionalSources.ToDictionary(
+            source => source.Id,
+            _ => AdditionalSourcePathBox.Text.Trim(),
+            StringComparer.OrdinalIgnoreCase);
+    }
 
     private DriverProfile RequireProfile() => SelectedProfile ?? throw new InvalidOperationException(_localization["message.profileRequired"]);
 

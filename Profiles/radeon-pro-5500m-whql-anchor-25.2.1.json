@@ -1,10 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "amd-25.2.1-radeon-pro-5500m-020f106b-whql-anchor",
   "displayName": "AMD 25.2.1 Radeon Pro 5500M (020F106B) [Original WHQL Anchor]",
   "marketingVersion": "25.2.1",
   "packageVersion": "24.20.33.05",
   "driverVersion": "32.0.12033.5029",
+  "installationMode": "whql-anchor",
+  "supportStatus": "Verified",
   "kernelDriverModified": false,
   "infName": "u0412654.inf",
   "kernelDriverPath": "B412641/amdkmdag.sys",

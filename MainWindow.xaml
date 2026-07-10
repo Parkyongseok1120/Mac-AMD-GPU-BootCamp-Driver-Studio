@@ -19,11 +19,11 @@
             <NavigationViewItem x:Name="OverviewNav" Content="Overview" Tag="overview">
                 <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="PackageNav" Content="Package" Tag="package">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="Folder" /></NavigationViewItem.Icon>
-            </NavigationViewItem>
             <NavigationViewItem x:Name="DownloadsNav" Content="Downloads" Tag="downloads">
                 <NavigationViewItem.Icon><SymbolIcon Symbol="Download" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="PackageNav" Content="Package" Tag="package">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Folder" /></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="PrepareNav" Content="Prepare" Tag="prepare">
                 <NavigationViewItem.Icon><SymbolIcon Symbol="Repair" /></NavigationViewItem.Icon>
@@ -59,7 +59,10 @@
                 </StackPanel>
                 <ComboBox x:Name="LanguagePicker" Grid.Column="1" Width="150" SelectedIndex="0"
                           SelectionChanged="LanguagePicker_SelectionChanged">
+                <!--
                     <ComboBoxItem Content="한국어" Tag="ko-KR" />
+                -->
+                    <ComboBoxItem Content="Korean" Tag="ko-KR" />
                     <ComboBoxItem Content="English" Tag="en-US" />
                 </ComboBox>
             </Grid>
@@ -86,26 +89,46 @@
                             <Border Style="{StaticResource CardStyle}">
                                 <StackPanel Spacing="8">
                                     <TextBlock x:Name="GpuCardLabel" Text="Detected GPU" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="GpuNameText" Text="Checking..." FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="GpuCodeText" Text="" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                                    <!--
+                                    <TextBlock x:Name="GpuCardLabel" Text="Detected GPU" Style="{StaticResource CaptionStyle}" />
                                     <TextBlock x:Name="GpuNameText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
                                     <TextBlock x:Name="GpuCodeText" Text="—" Style="{StaticResource CaptionStyle}" />
                                 </StackPanel>
                             </Border>
+                                    -->
                             <Border Grid.Column="1" Style="{StaticResource CardStyle}">
                                 <StackPanel Spacing="8">
+                                    <TextBlock x:Name="DriverCardLabel" Text="Installed driver" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="DriverVersionText" Text="Checking..." FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                    <TextBlock x:Name="DriverInfText" Text="" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                                    <!--
                                     <TextBlock x:Name="DriverCardLabel" Text="Installed driver" Style="{StaticResource CaptionStyle}" />
                                     <TextBlock x:Name="DriverVersionText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" />
                                     <TextBlock x:Name="DriverInfText" Text="—" Style="{StaticResource CaptionStyle}" />
                                 </StackPanel>
                             </Border>
+                                    -->
                             <Border Grid.Column="2" Style="{StaticResource CardStyle}">
                                 <StackPanel Spacing="8">
+                                    <TextBlock x:Name="SecurityCardLabel" Text="Boot security" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock x:Name="SecureBootText" Text="Checking..." FontFamily="{StaticResource NanumBold}" FontSize="17" />
+                                    <TextBlock x:Name="TestModeText" Text="" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </Border>
+                                    <!--
                                     <TextBlock x:Name="SecurityCardLabel" Text="Boot security" Style="{StaticResource CaptionStyle}" />
                                     <TextBlock x:Name="SecureBootText" Text="Checking…" FontFamily="{StaticResource NanumBold}" FontSize="17" />
                                     <TextBlock x:Name="TestModeText" Text="—" Style="{StaticResource CaptionStyle}" />
                                 </StackPanel>
                             </Border>
+                                    -->
                         </Grid>
-
                         <Border Style="{StaticResource CardStyle}">
                             <Grid ColumnSpacing="24">
                                 <Grid.ColumnDefinitions>
@@ -196,6 +219,14 @@
                                     <TextBox x:Name="SourcePathBox" Text="C:\AMD" PlaceholderText="Select a folder" />
                                     <Button x:Name="BrowseSourceButton" Grid.Column="1" Content="Browse" Click="BrowseSourceButton_Click" />
                                 </Grid>
+                                <StackPanel x:Name="AdditionalSourcePanel" Visibility="Collapsed" Spacing="8">
+                                    <TextBlock x:Name="AdditionalSourceLabel" Text="Additional official AMD package" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <TextBox x:Name="AdditionalSourcePathBox" PlaceholderText="Select the original 25.2.1 extraction folder" />
+                                        <Button x:Name="BrowseAdditionalSourceButton" Grid.Column="1" Content="Browse" Click="BrowseAdditionalSourceButton_Click" />
+                                    </Grid>
+                                </StackPanel>
                                 <Button x:Name="AuditButton" Content="Verify hardware and package" HorizontalAlignment="Left" Style="{StaticResource AccentButtonStyle}" Click="AuditButton_Click" />
                             </StackPanel>
                         </Border>
@@ -203,7 +234,10 @@
                             <StackPanel Spacing="6">
                                 <TextBlock x:Name="AuditResultLabel" Text="Verification result" Style="{StaticResource CaptionStyle}" />
                                 <TextBlock x:Name="AuditResultText" Text="Not verified" FontFamily="{StaticResource NanumBold}" FontSize="17" TextWrapping="Wrap" />
+                                <TextBlock x:Name="AuditDetailText" Text="" Style="{StaticResource CaptionStyle}" />
+                                <!--
                                 <TextBlock x:Name="AuditDetailText" Text="—" Style="{StaticResource CaptionStyle}" />
+                                -->
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -240,7 +274,7 @@
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel Spacing="14">
                                 <TextBlock x:Name="InstallProfilePickerLabel" Text="Install profile" Style="{StaticResource CaptionStyle}" />
-                                <ListView x:Name="InstallProfilePicker" SelectionMode="Single" SelectionChanged="InstallProfilePicker_SelectionChanged">
+                                <ListView x:Name="InstallProfilePicker" Visibility="Collapsed" SelectionMode="Single" SelectionChanged="InstallProfilePicker_SelectionChanged">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,8" MinWidth="760">
@@ -293,7 +327,12 @@
                                 <TextBlock x:Name="SettingsLanguageLabel" Text="Interface language" Style="{StaticResource CaptionStyle}" />
                                 <ComboBox x:Name="SettingsLanguagePicker" Width="240" HorizontalAlignment="Left"
                                           SelectionChanged="SettingsLanguagePicker_SelectionChanged">
+                                    <!--
                                     <ComboBoxItem Content="한국어" Tag="ko-KR" />
+                                    <ComboBoxItem Content="English" Tag="en-US" />
+                                </ComboBox>
+                                    -->
+                                    <ComboBoxItem Content="Korean" Tag="ko-KR" />
                                     <ComboBoxItem Content="English" Tag="en-US" />
                                 </ComboBox>
                                 <ToggleSwitch x:Name="SettingsBlockWindowsUpdateToggle" Header="Block driver updates through Windows Update" IsOn="True" />
