@@ -1,8 +1,8 @@
-# Mac AMD GPU BootCamp Driver Studio Release 1.1.0
+
 
 <img width="1741" height="972" alt="스크린샷 2026-06-23 202959" src="https://github.com/user-attachments/assets/879d88b5-d19f-4f8d-a515-ec1a1a76ae43" />
 
-<img width="1717" height="1209" alt="스크린샷 2026-06-23 195454" src="https://github.com/user-attachments/assets/43cbaf70-1ad2-4f93-8e42-82b5a907f307" />
+# Mac AMD GPU BootCamp Driver Studio Release 1.1.0
 
 AMD Boot Camp Driver Studio is an unofficial utility that prepares, verifies, locally signs, installs, backs up, and restores a compatible AMD driver package for the Radeon Pro 5500M found in the 2019 16-inch MacBook Pro.
 
