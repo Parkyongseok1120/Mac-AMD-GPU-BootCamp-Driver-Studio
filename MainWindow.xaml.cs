@@ -31,6 +31,17 @@ public sealed partial class MainWindow : Window
 
     private DriverProfile? SelectedProfile => ProfilePicker.SelectedItem as DriverProfile;
 
+    private static bool ShowHiddenProfiles =>
+        string.Equals(Environment.GetEnvironmentVariable("AMD_BOOTCAMP_SHOW_LEGACY_PROFILES"), "1", StringComparison.Ordinal);
+
+    private IEnumerable<DriverProfile> GetUserFacingProfiles() =>
+        _loadedProfiles.Where(x => x.IsUserVisible || ShowHiddenProfiles);
+
+    private DriverProfile? ResolveSelectableProfile(DriverProfile? preferred) =>
+        preferred is { IsUserVisible: true } || (preferred is not null && ShowHiddenProfiles)
+            ? preferred
+            : GetUserFacingProfiles().FirstOrDefault();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -82,18 +93,18 @@ public sealed partial class MainWindow : Window
 
             _loadedProfiles = await _profiles.LoadAsync(ct);
             ApplyLanguage();
-            ProfilePicker.ItemsSource = _loadedProfiles;
+            ProfilePicker.ItemsSource = GetUserFacingProfiles().ToList();
             DriverVersionList.ItemsSource = GetDownloadProfiles();
             var pendingInstallResult = await _system.LoadInstallResultAsync(ct);
             var initialProfile = Directory.Exists(_settings.PreparedFolder)
                 ? _loadedProfiles.FirstOrDefault(x => x.Id.Equals(_settings.PreparedProfileId, StringComparison.OrdinalIgnoreCase))
                 : null;
-            initialProfile ??= _loadedProfiles.FirstOrDefault();
+            initialProfile = ResolveSelectableProfile(initialProfile) ?? GetUserFacingProfiles().FirstOrDefault();
             SelectProfile(initialProfile);
             if (pendingInstallResult is { ProfileId.Length: > 0 })
             {
-                var installProfile = _loadedProfiles.FirstOrDefault(x =>
-                    x.Id.Equals(pendingInstallResult.ProfileId, StringComparison.OrdinalIgnoreCase));
+                var installProfile = ResolveSelectableProfile(_loadedProfiles.FirstOrDefault(x =>
+                    x.Id.Equals(pendingInstallResult.ProfileId, StringComparison.OrdinalIgnoreCase)));
                 if (installProfile is not null) SelectProfile(installProfile);
             }
             DownloadFolderBox.Text = _settings.DownloadFolder;
@@ -410,7 +421,7 @@ public sealed partial class MainWindow : Window
     }
 
     private List<DriverProfile> GetDownloadProfiles() =>
-        _loadedProfiles
+        GetUserFacingProfiles()
             .Where(x => x.HasInstallerForCurrentWindows)
             .GroupBy(x => $"{x.InstallerFileName}|{x.InstallerSha256}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group
@@ -793,6 +804,7 @@ public sealed partial class MainWindow : Window
 
     private void SelectProfile(DriverProfile? profile)
     {
+        profile = ResolveSelectableProfile(profile);
         if (profile is null) return;
         _syncingProfileSelection = true;
         try
@@ -819,13 +831,13 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var installProfile = _loadedProfiles
+        var installProfile = GetUserFacingProfiles()
             .Where(x => x.InstallerFileName.Equals(downloadProfile.InstallerFileName, StringComparison.OrdinalIgnoreCase) &&
                         x.InstallerSha256.Equals(downloadProfile.InstallerSha256, StringComparison.OrdinalIgnoreCase))
             .OrderBy(ProfileSelectionPriority)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
-        SelectProfile(installProfile ?? downloadProfile);
+        SelectProfile(installProfile ?? ResolveSelectableProfile(downloadProfile));
     }
 
     private List<DriverProfile> GetInstallProfilesFor(DriverProfile profile) => [profile];
@@ -882,6 +894,8 @@ public sealed partial class MainWindow : Window
             : _localization["install.testSigningNotRequired"];
 
         var text = $"{profile.DisplayName}\n{_localization["install.modeLabel"]}: {mode.Title}\n{mode.Detail}";
+        if (profile.InstallationMode.Equals("legacy-binary-patch", StringComparison.OrdinalIgnoreCase))
+            text += $"\n\n{_localization["install.mode.binary.deprecated"]}";
         PackageProfileModeText.Text = text;
         PrepareProfileModeText.Text = text;
         InstallProfileModeText.Text = text;

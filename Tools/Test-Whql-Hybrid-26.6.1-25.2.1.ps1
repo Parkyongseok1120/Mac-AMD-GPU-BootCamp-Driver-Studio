@@ -1,16 +1,19 @@
 #Requires -RunAsAdministrator
 
 param(
-    [string]$ProjectRoot = 'C:\Users\YongseokPark\Documents\Github\Mac-AMD-GPU-BootCamp-Driver-Studio',
+    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
     [string]$SoftwareSourceRoot = 'C:\AMD\AMD-Software-Installer\Packages\Drivers\Display2\WT6A_INF',
     [string]$KernelSourceRoot = 'C:\AMD\Official\AMD-25.2.1\Packages\Drivers\Display\WT6A_INF',
     [string]$ResultPath = 'C:\AMD\whql-hybrid-26.6.1-25.2.1-result.txt',
-    [switch]$ResumeAfterReboot
+    [switch]$ResumeAfterReboot,
+    [switch]$PrepareOnly,
+    [switch]$RunWhqlDiagnostics,
+    [switch]$TestRollbackAfterInstall
 )
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
-$profilePath = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-text-only.json'
+$profilePath = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-original-kernel-hybrid.json'
 $signScript = Join-Path $ProjectRoot 'Scripts\Sign-Package.ps1'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $prepareRoot = "C:\AMD\BootCampDriverStudio\Prepared\AMD-26.6.1-with-25.2.1-kernel-$stamp"
@@ -21,15 +24,8 @@ $statePath = 'C:\AMD\whql-hybrid-26.6.1-25.2.1-pending.json'
 $result = [System.Collections.Generic.List[string]]::new()
 $driverChanged = $false
 $backupInf = $null
-
-$expectedSoftwareInf = '5100D774A0FF67E1164D79061B7166D2CDC70C3E3A84A631D16A823707D94652'
-$expectedSoftwareCat = '3DE64004A2B58579267D965AA9B99D15FEF08D00F6CCF2C0FAEF22C219E61BA1'
-$expectedSoftwareKernel = '79AE113DF4EA446C01FA4F3300501D6E6854CB61A4A0F453BF5A7A4767EB1EB7'
-$expectedSoftwareGcf = 'D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A'
-$expectedAnchorInf = '4106300E195C080177D5F4D71A291C8978FF50B1511BD0696DE33B171A8ED55B'
-$expectedAnchorCat = 'BB1FE286358DE820A09A60B89E666C33CB30A4079540C90043AC2DA78BBF6D69'
-$expectedAnchorKernel = 'E04E80541F26F2AB76E67EEB5E006E0178C0240F831EE41BB0073E4F91B40799'
-$expectedHybridInf = 'F56845625BE34DF5000E41C76BE857960B555B4D50C92AF065C11DA523681490'
+$profile = $null
+$hardwareId = $null
 
 function Add-Result([string]$Message) {
     $line = '[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
@@ -42,6 +38,20 @@ function Save-Result {
     [IO.File]::WriteAllLines($ResultPath, $result, (New-Object Text.UTF8Encoding($false)))
 }
 
+function Get-ProfileHashMap($Profile) {
+    $map = @{}
+    foreach ($rule in $Profile.files) { $map[[string]$rule.path] = [string]$rule.sha256 }
+    foreach ($source in $Profile.additionalSources) {
+        foreach ($rule in $source.files) { $map["$([string]$source.id)/$([string]$rule.path)"] = [string]$rule.sha256 }
+    }
+    foreach ($copy in $Profile.sourceFileCopies) { $map["copy:$([string]$copy.destinationPath)"] = [string]$copy.sha256 }
+    foreach ($assertion in $Profile.runtimeFileAssertions) { $map["runtime:$([string]$assertion.path)"] = [string]$assertion.sha256 }
+    if ($Profile.files | Where-Object { $_.path -eq 'u0201163.inf' -and $_.patchedSha256 }) {
+        $map['patched:u0201163.inf'] = [string]($Profile.files | Where-Object { $_.path -eq 'u0201163.inf' } | Select-Object -First 1).patchedSha256
+    }
+    return $map
+}
+
 function Assert-Hash([string]$Path, [string]$Expected, [string]$Label) {
     if (-not (Test-Path -LiteralPath $Path)) { throw "$Label missing: $Path" }
     $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
@@ -49,9 +59,9 @@ function Assert-Hash([string]$Path, [string]$Expected, [string]$Label) {
     Add-Result "HASH_OK $Label=$actual"
 }
 
-function Get-Gpu([string]$HardwareId) {
+function Get-Gpu([string]$Id) {
     Get-PnpDevice -PresentOnly -ErrorAction Stop |
-        Where-Object { $_.InstanceId -like ($HardwareId + '*') } |
+        Where-Object { $_.InstanceId -like ($Id + '*') } |
         Select-Object -First 1
 }
 
@@ -99,13 +109,25 @@ function New-WhqlLink([string]$SourceRoot, [string]$InfName, [string]$CatName, [
     Add-Result "WHQL_LINK_CREATED=$Destination placeholders=$($placeholders.Count)"
 }
 
-function Restore-Backup($Profile, [string]$HardwareId) {
+function Invoke-WhqlDiagnostics([string]$OutputPath) {
+    $dx = Start-Process -FilePath "$env:windir\System32\dxdiag.exe" `
+        -ArgumentList "/dontskip /whql:on /t `"$OutputPath`"" -WindowStyle Hidden -PassThru
+    if (-not $dx.WaitForExit(120000)) { $dx.Kill(); throw 'dxdiag timed out.' }
+    Start-Sleep -Seconds 2
+    if (-not (Test-Path -LiteralPath $OutputPath)) { throw "dxdiag output missing: $OutputPath" }
+    $dxText = Get-Content -LiteralPath $OutputPath -Raw
+    $matched = $dxText -match 'Card name:\s+AMD Radeon Pro 5500M[\s\S]{0,4000}WHQL Logo.d:\s+Yes'
+    Add-Result "DXDIAG_WHQL_MARKER=$matched path=$OutputPath"
+    return $matched
+}
+
+function Restore-Backup($Profile, [string]$Id) {
     if (-not $script:backupInf -or -not (Test-Path -LiteralPath $script:backupInf)) {
         Add-Result 'ROLLBACK_SKIPPED backup INF is unavailable.'
-        return
+        return $false
     }
     Add-Result "ROLLBACK_BEGIN=$script:backupInf"
-    $gpu = Get-Gpu $HardwareId
+    $gpu = Get-Gpu $Id
     if ($gpu) {
         $currentInf = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverInfPath')
         if ($currentInf -match '^oem\d+\.inf$') {
@@ -119,104 +141,54 @@ function Restore-Backup($Profile, [string]$HardwareId) {
     $result.Add($restoreOutput.Trim())
     Add-Result "ROLLBACK_INSTALL_EXIT=$restoreExit"
     Start-Sleep -Seconds 8
-    $gpu = Get-Gpu $HardwareId
+    $gpu = Get-Gpu $Id
     if ($gpu) {
         Apply-RegistrySettings $Profile $gpu
         $restartOutput = & pnputil.exe /restart-device $gpu.InstanceId 2>&1 | Out-String
         $result.Add($restartOutput.Trim())
         Add-Result "ROLLBACK_RESTART_EXIT=$LASTEXITCODE"
         Start-Sleep -Seconds 20
-        $gpu = Get-Gpu $HardwareId
+        $gpu = Get-Gpu $Id
         $code = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
         $version = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
         Add-Result "ROLLBACK_FINAL_STATUS=$($gpu.Status) CODE=$code VERSION=$version"
+        return ($code -eq 0 -and $version -eq '32.0.12033.5029')
     }
+    return $false
 }
 
-try {
-    $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ([bool]$profile.kernelDriverModified) { throw 'The source profile permits kernel patching.' }
-    $hardwareId = [string]$profile.supportedHardwareIds[0]
+function Save-PendingState {
+    [pscustomobject]@{
+        PreparedRoot = $prepareRoot
+        Link26Root = $link26Root
+        Link25Root = $link25Root
+        BackupRoot = $backupRoot
+        BackupInf = $backupInf
+        ProjectRoot = $ProjectRoot
+        SoftwareSourceRoot = $SoftwareSourceRoot
+        KernelSourceRoot = $KernelSourceRoot
+        CreatedAt = (Get-Date).ToString('o')
+    } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+}
 
-    if ($ResumeAfterReboot) {
-        if (-not (Test-Path -LiteralPath $statePath)) { throw "Pending hybrid state not found: $statePath" }
-        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
-        $prepareRoot = [string]$state.PreparedRoot
-        $link26Root = [string]$state.Link26Root
-        $link25Root = [string]$state.Link25Root
-        $backupRoot = [string]$state.BackupRoot
-        $backupInf = [string]$state.BackupInf
-        $driverChanged = $true
-        Add-Result "RESUME_AFTER_REBOOT prepared=$prepareRoot"
-
-        $startOptions = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name SystemStartOptions)
-        if (($startOptions -split '\s+') -contains 'TESTSIGNING') { throw 'TESTSIGNING is active after reboot.' }
-        $gpu = Get-Gpu $hardwareId
-        if (-not $gpu) { throw 'GPU is missing after the hybrid reboot.' }
-        $problemCode = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
-        $driverVersion = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
-        $driverInf = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverInfPath')
-        Add-Result "POST_REBOOT_HYBRID_STATUS=$($gpu.Status) CODE=$problemCode VERSION=$driverVersion INF=$driverInf"
-        if ($problemCode -ne 0 -or $driverVersion -ne '32.0.21043.12001') {
-            throw "Hybrid did not start after reboot. Code=$problemCode Version=$driverVersion"
-        }
-
-        Apply-RegistrySettings $profile $gpu
-        $service = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_Service')
-        $imagePath = [string](Get-ItemPropertyValue "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name ImagePath)
-        $loadedKernel = $imagePath -replace '^\\SystemRoot', $env:windir
-        Assert-Hash $loadedKernel $expectedAnchorKernel 'loaded hybrid kernel'
-        $activeRepo = Split-Path -Parent (Split-Path -Parent $loadedKernel)
-        $loadedUmd = Join-Path $activeRepo 'B026079\amdxx64.dll'
-        $sourceUmd = Join-Path $SoftwareSourceRoot 'B026079\amdxx64.dll'
-        Assert-Hash $loadedUmd ((Get-FileHash -LiteralPath $sourceUmd -Algorithm SHA256).Hash) 'loaded 26.6.1 amdxx64.dll'
-        Add-Result "HYBRID_COMPONENTS_OK kernel=25.2.1 user_mode=26.6.1 service=$service"
-
-        foreach ($linkInf in @((Join-Path $link25Root 'u0412654.inf'), (Join-Path $link26Root 'u0201163.inf'))) {
-            $linkOutput = & pnputil.exe /add-driver $linkInf /install 2>&1 | Out-String
-            $linkExit = $LASTEXITCODE
-            $result.Add($linkOutput.Trim())
-            Add-Result "WHQL_LINK_INSTALL_EXIT=$linkExit INF=$linkInf"
-            if ($linkExit -notin @(0, 3010)) { throw "WHQL link install failed: $linkInf" }
-        }
-
-        $dxdiag = "C:\AMD\dxdiag-whql-hybrid-26.6.1-25.2.1-$stamp.txt"
-        $dx = Start-Process -FilePath "$env:windir\System32\dxdiag.exe" `
-            -ArgumentList "/dontskip /whql:on /t `"$dxdiag`"" -WindowStyle Hidden -PassThru
-        if (-not $dx.WaitForExit(120000)) { $dx.Kill(); throw 'dxdiag timed out.' }
-        Start-Sleep -Seconds 2
-        $dxText = Get-Content -LiteralPath $dxdiag -Raw
-        if ($dxText -notmatch 'Card name:\s+AMD Radeon Pro 5500M[\s\S]{0,4000}WHQL Logo.d:\s+Yes') {
-            throw 'dxdiag did not report WHQL Logo as Yes for the hybrid driver.'
-        }
-        Add-Result "DXDIAG_WHQL_YES=$dxdiag"
-        Add-Result "FINAL_TESTSIGNING_OFF SystemStartOptions=$startOptions"
-        Remove-Item -LiteralPath $statePath -Force
-        $driverChanged = $false
-        Save-Result
-        exit 0
+function Load-Profile {
+    param([string]$Path)
+    $loaded = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([string]$loaded.installationMode -ne 'original-kernel-hybrid') {
+        throw "Profile installationMode must be original-kernel-hybrid. Actual=$($loaded.installationMode)"
     }
+    if ([bool]$loaded.kernelDriverModified) { throw 'The source profile permits kernel patching.' }
+    return $loaded
+}
 
-    $startOptions = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name SystemStartOptions)
-    Add-Result "SystemStartOptions=$startOptions"
-    if (($startOptions -split '\s+') -contains 'TESTSIGNING') { throw 'TESTSIGNING is active.' }
-
-    $gpu = Get-Gpu $hardwareId
-    if (-not $gpu) { throw "Supported GPU not found: $hardwareId" }
-    $initialCode = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
-    $initialVersion = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
-    Add-Result "INITIAL_STATUS=$($gpu.Status) CODE=$initialCode VERSION=$initialVersion"
-    if ($initialCode -ne 0 -or $initialVersion -ne '32.0.12033.5029') {
-        throw 'The verified 25.2.1 rollback anchor is not active.'
-    }
-
-    Assert-Hash (Join-Path $SoftwareSourceRoot 'u0201163.inf') $expectedSoftwareInf '26.6.1 INF'
-    Assert-Hash (Join-Path $SoftwareSourceRoot 'u0201163.cat') $expectedSoftwareCat '26.6.1 CAT'
-    Assert-Hash (Join-Path $SoftwareSourceRoot 'B026079\amdkmdag.sys') $expectedSoftwareKernel '26.6.1 kernel'
-    Assert-Hash (Join-Path $SoftwareSourceRoot 'B026079\amdgcf.dat') $expectedSoftwareGcf '26.6.1 amdgcf.dat'
-    Assert-Hash (Join-Path $KernelSourceRoot 'u0412654.inf') $expectedAnchorInf '25.2.1 INF'
-    Assert-Hash (Join-Path $KernelSourceRoot 'u0412654.cat') $expectedAnchorCat '25.2.1 CAT'
-    Assert-Hash (Join-Path $KernelSourceRoot 'B412641\amdkmdag.sys') $expectedAnchorKernel '25.2.1 kernel'
+function Prepare-HybridPackage($Profile, $Hashes) {
+    Assert-Hash (Join-Path $SoftwareSourceRoot 'u0201163.inf') $Hashes['u0201163.inf'] '26.6.1 INF'
+    Assert-Hash (Join-Path $SoftwareSourceRoot 'u0201163.cat') $Hashes['u0201163.cat'] '26.6.1 CAT'
+    Assert-Hash (Join-Path $SoftwareSourceRoot 'B026079/amdkmdag.sys') $Hashes['B026079/amdkmdag.sys'] '26.6.1 kernel'
+    Assert-Hash (Join-Path $SoftwareSourceRoot 'B026079/amdgcf.dat') $Hashes['B026079/amdgcf.dat'] '26.6.1 amdgcf.dat'
+    Assert-Hash (Join-Path $KernelSourceRoot 'u0412654.inf') $Hashes['kernel-anchor-25.2.1/u0412654.inf'] '25.2.1 INF'
+    Assert-Hash (Join-Path $KernelSourceRoot 'u0412654.cat') $Hashes['kernel-anchor-25.2.1/u0412654.cat'] '25.2.1 CAT'
+    Assert-Hash (Join-Path $KernelSourceRoot 'B412641/amdkmdag.sys') $Hashes['copy:B026079/amdkmdag.sys'] '25.2.1 kernel'
 
     foreach ($catalog in @((Join-Path $SoftwareSourceRoot 'u0201163.cat'), (Join-Path $KernelSourceRoot 'u0412654.cat'))) {
         $sig = Get-AuthenticodeSignature -LiteralPath $catalog
@@ -224,6 +196,7 @@ try {
             throw "Original Microsoft WHQL catalog is invalid: $catalog"
         }
     }
+
     $kernelSource = Join-Path $KernelSourceRoot 'B412641\amdkmdag.sys'
     $kernelSig = Get-AuthenticodeSignature -LiteralPath $kernelSource
     if ($kernelSig.Status -ne 'Valid' -or
@@ -236,16 +209,11 @@ try {
     Copy-Item -LiteralPath $SoftwareSourceRoot -Destination $prepareRoot -Recurse
     Copy-Item -LiteralPath $kernelSource -Destination (Join-Path $prepareRoot 'B026079\amdkmdag.sys') -Force
     Add-Result "HYBRID_PACKAGE_COPIED=$prepareRoot"
-    Add-Result "ORIGINAL_KERNEL_SUBSTITUTED 25.2.1=$expectedAnchorKernel"
+    Add-Result "ORIGINAL_KERNEL_SUBSTITUTED 25.2.1=$($Hashes['copy:B026079/amdkmdag.sys'])"
 
+    foreach ($patch in $Profile.patches) { Apply-TextPatch $patch $prepareRoot }
     $hybridInf = Join-Path $prepareRoot 'u0201163.inf'
-    $infText = [IO.File]::ReadAllText($hybridInf, [Text.Encoding]::ASCII)
-    $catalogSearch = 'CatalogFile=u0201163.cat'
-    if ([regex]::Matches($infText, [regex]::Escape($catalogSearch)).Count -ne 1) { throw 'CatalogFile patch count mismatch.' }
-    [IO.File]::WriteAllText($hybridInf, $infText.Replace($catalogSearch, 'CatalogFile=amdgpu.cat'), [Text.Encoding]::ASCII)
-    Add-Result 'TEXT_PATCH_OK CatalogFile occurrences=1'
-    foreach ($patch in $profile.patches) { Apply-TextPatch $patch $prepareRoot }
-    Assert-Hash $hybridInf $expectedHybridInf 'hybrid INF'
+    Assert-Hash $hybridInf $Hashes['patched:u0201163.inf'] 'hybrid INF'
 
     $unchanged = 0
     foreach ($source in Get-ChildItem -LiteralPath $SoftwareSourceRoot -Recurse -File) {
@@ -258,35 +226,127 @@ try {
         if ($sourceHash -ne $copyHash) { throw "26.6.1 binary changed: $relative" }
         $unchanged++
     }
-    Assert-Hash (Join-Path $prepareRoot 'B026079\amdkmdag.sys') $expectedAnchorKernel 'prepared anchor kernel'
+
+    foreach ($assertion in $Profile.runtimeFileAssertions) {
+        $path = Join-Path $prepareRoot ($assertion.path -replace '/', '\')
+        Assert-Hash $path $Hashes["runtime:$([string]$assertion.path)"] "prepared runtime $($assertion.path)"
+    }
     Add-Result "ALL_26.6.1_NON_KERNEL_FILES_UNCHANGED count=$unchanged"
 
     & $signScript -PackageRoot $prepareRoot -KernelDriverPath 'B026079/amdkmdag.sys' `
-        -CatalogFile 'amdgpu.cat' -CertificateSubject ([string]$profile.certificateSubject) -SkipKernelSigning
+        -CatalogFile 'amdgpu.cat' -CertificateSubject ([string]$Profile.certificateSubject) -SkipKernelSigning
     Add-Result 'LOCAL_HYBRID_CATALOG_SIGNED'
     & $signScript -PackageRoot $prepareRoot -KernelDriverPath 'B026079/amdkmdag.sys' `
-        -CatalogFile 'amdgpu.cat' -CertificateSubject ([string]$profile.certificateSubject) -SkipKernelSigning -ValidateOnly
+        -CatalogFile 'amdgpu.cat' -CertificateSubject ([string]$Profile.certificateSubject) -SkipKernelSigning -ValidateOnly
     Add-Result 'LOCAL_HYBRID_SIGNATURE_VALID'
+    return $hybridInf
+}
 
-    New-WhqlLink $SoftwareSourceRoot 'u0201163.inf' 'u0201163.cat' 'B026079' $link26Root
-    New-WhqlLink $KernelSourceRoot 'u0412654.inf' 'u0412654.cat' 'B412641' $link25Root
+function Assert-HybridRuntime($Profile, $Hashes, [string]$ExpectedVersion) {
+    $gpu = Get-Gpu $hardwareId
+    if (-not $gpu) { throw 'Supported GPU not found during runtime verification.' }
+    $problemCode = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
+    $driverVersion = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
+    $driverInf = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverInfPath')
+    Add-Result "HYBRID_STATUS=$($gpu.Status) CODE=$problemCode VERSION=$driverVersion INF=$driverInf"
+    if ($problemCode -ne 0 -or $driverVersion -ne $ExpectedVersion) {
+        throw "Hybrid runtime check failed. Code=$problemCode Version=$driverVersion"
+    }
+
+    $service = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_Service')
+    $imagePath = [string](Get-ItemPropertyValue "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name ImagePath)
+    $loadedKernel = $imagePath -replace '^\\SystemRoot', $env:windir
+    Assert-Hash $loadedKernel $Hashes['runtime:B026079/amdkmdag.sys'] 'loaded hybrid kernel'
+    $activeRepo = Split-Path -Parent (Split-Path -Parent $loadedKernel)
+    $loadedUmd = Join-Path $activeRepo 'B026079\amdxx64.dll'
+    Assert-Hash $loadedUmd $Hashes['runtime:B026079/amdxx64.dll'] 'loaded 26.6.1 amdxx64.dll'
+    $loadedGcf = Join-Path $activeRepo 'B026079\amdgcf.dat'
+    Assert-Hash $loadedGcf $Hashes['runtime:B026079/amdgcf.dat'] 'loaded 26.6.1 amdgcf.dat'
+    Add-Result "HYBRID_COMPONENTS_OK kernel=25.2.1 user_mode=26.6.1 service=$service"
+}
+
+try {
+    $profile = Load-Profile $profilePath
+    $hardwareId = [string]$profile.supportedHardwareIds[0]
+    $hashes = Get-ProfileHashMap $profile
+
+    if ($ResumeAfterReboot) {
+        if (-not (Test-Path -LiteralPath $statePath)) { throw "Pending hybrid state not found: $statePath" }
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $prepareRoot = [string]$state.PreparedRoot
+        $link26Root = [string]$state.Link26Root
+        $link25Root = [string]$state.Link25Root
+        $backupRoot = [string]$state.BackupRoot
+        $backupInf = [string]$state.BackupInf
+        if ($state.ProjectRoot) { $ProjectRoot = [string]$state.ProjectRoot }
+        if ($state.SoftwareSourceRoot) { $SoftwareSourceRoot = [string]$state.SoftwareSourceRoot }
+        if ($state.KernelSourceRoot) { $KernelSourceRoot = [string]$state.KernelSourceRoot }
+        $driverChanged = $true
+        Add-Result "RESUME_AFTER_REBOOT prepared=$prepareRoot"
+
+        $startOptions = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name SystemStartOptions)
+        if (($startOptions -split '\s+') -contains 'TESTSIGNING') { throw 'TESTSIGNING is active after reboot.' }
+        Assert-HybridRuntime $profile $hashes '32.0.21043.12001'
+        $gpu = Get-Gpu $hardwareId
+        Apply-RegistrySettings $profile $gpu
+
+        if ($RunWhqlDiagnostics) {
+            New-WhqlLink $SoftwareSourceRoot 'u0201163.inf' 'u0201163.cat' 'B026079' $link26Root
+            New-WhqlLink $KernelSourceRoot 'u0412654.inf' 'u0412654.cat' 'B412641' $link25Root
+            foreach ($linkInf in @((Join-Path $link25Root 'u0412654.inf'), (Join-Path $link26Root 'u0201163.inf'))) {
+                $linkOutput = & pnputil.exe /add-driver $linkInf /install 2>&1 | Out-String
+                $result.Add($linkOutput.Trim())
+                Add-Result "WHQL_LINK_INSTALL_EXIT=$LASTEXITCODE INF=$linkInf"
+            }
+            Invoke-WhqlDiagnostics "C:\AMD\dxdiag-whql-hybrid-26.6.1-25.2.1-$stamp.txt" | Out-Null
+        }
+
+        Add-Result "FINAL_TESTSIGNING_OFF SystemStartOptions=$startOptions"
+        Remove-Item -LiteralPath $statePath -Force
+        $driverChanged = $false
+        Save-Result
+        exit 0
+    }
+
+    $startOptions = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name SystemStartOptions)
+    Add-Result "SystemStartOptions=$startOptions"
+    if (-not $PrepareOnly -and ($startOptions -split '\s+') -contains 'TESTSIGNING') { throw 'TESTSIGNING is active.' }
+
+    $hybridInf = Prepare-HybridPackage $profile $hashes
+    if ($PrepareOnly) {
+        Add-Result "PREPARE_ONLY_ROOT=$prepareRoot"
+        Save-Result
+        exit 0
+    }
+
+    $gpu = Get-Gpu $hardwareId
+    if (-not $gpu) { throw "Supported GPU not found: $hardwareId" }
+    $initialCode = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
+    $initialVersion = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
+    Add-Result "INITIAL_STATUS=$($gpu.Status) CODE=$initialCode VERSION=$initialVersion"
+    if ($initialCode -ne 0 -or $initialVersion -ne '32.0.12033.5029') {
+        throw 'The verified 25.2.1 rollback anchor is not active.'
+    }
+
+    if ($RunWhqlDiagnostics) {
+        New-WhqlLink $SoftwareSourceRoot 'u0201163.inf' 'u0201163.cat' 'B026079' $link26Root
+        New-WhqlLink $KernelSourceRoot 'u0412654.inf' 'u0412654.cat' 'B412641' $link25Root
+    }
 
     $oldInf = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverInfPath')
     New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
     $exportOutput = & pnputil.exe /export-driver $oldInf $backupRoot 2>&1 | Out-String
-    $exportExit = $LASTEXITCODE
     $result.Add($exportOutput.Trim())
-    Add-Result "EXPORT_EXIT=$exportExit BACKUP=$backupRoot"
-    if ($exportExit -ne 0) { throw "Rollback anchor export failed: $exportExit" }
+    Add-Result "EXPORT_EXIT=$LASTEXITCODE BACKUP=$backupRoot"
+    if ($LASTEXITCODE -ne 0) { throw "Rollback anchor export failed: $LASTEXITCODE" }
     $backupInf = Get-ChildItem -LiteralPath $backupRoot -Recurse -Filter 'u0412654.inf' -File | Select-Object -First 1 -ExpandProperty FullName
     if (-not $backupInf) { throw 'Rollback anchor INF was not exported.' }
     Add-Result "ROLLBACK_INF=$backupInf"
 
     $deleteOutput = & pnputil.exe /delete-driver $oldInf /uninstall /force 2>&1 | Out-String
-    $deleteExit = $LASTEXITCODE
     $result.Add($deleteOutput.Trim())
-    Add-Result "DELETE_ANCHOR_EXIT=$deleteExit"
-    if ($deleteExit -notin @(0, 3010)) { throw "Anchor removal failed: $deleteExit" }
+    Add-Result "DELETE_ANCHOR_EXIT=$LASTEXITCODE"
+    if ($LASTEXITCODE -notin @(0, 3010)) { throw "Anchor removal failed: $LASTEXITCODE" }
     $driverChanged = $true
 
     Start-Sleep -Seconds 4
@@ -296,68 +356,39 @@ try {
     Add-Result "HYBRID_INSTALL_EXIT=$installExit"
     if ($installExit -notin @(0, 3010)) { throw "Hybrid install failed: $installExit" }
 
+    if ($TestRollbackAfterInstall) {
+        throw 'Intentional rollback test after hybrid installation.'
+    }
+
     Start-Sleep -Seconds 8
     $gpu = Get-Gpu $hardwareId
     if (-not $gpu) { throw 'GPU disappeared after hybrid installation.' }
     Apply-RegistrySettings $profile $gpu
     if ($installExit -eq 3010) {
-        [pscustomobject]@{
-            PreparedRoot = $prepareRoot
-            Link26Root = $link26Root
-            Link25Root = $link25Root
-            BackupRoot = $backupRoot
-            BackupInf = $backupInf
-            CreatedAt = (Get-Date).ToString('o')
-        } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+        Save-PendingState
         Add-Result "PENDING_REBOOT_STATE=$statePath"
         Add-Result 'HYBRID_INSTALL_PENDING_REBOOT; verification will resume after Windows starts.'
         Save-Result
         shutdown.exe /r /t 60 /c "AMD WHQL hybrid driver verification requires a reboot."
         exit 0
     }
+
     $restartOutput = & pnputil.exe /restart-device $gpu.InstanceId 2>&1 | Out-String
-    $restartExit = $LASTEXITCODE
     $result.Add($restartOutput.Trim())
-    Add-Result "HYBRID_RESTART_EXIT=$restartExit"
-    if ($restartExit -notin @(0, 3010)) { throw "Hybrid device restart failed: $restartExit" }
+    Add-Result "HYBRID_RESTART_EXIT=$LASTEXITCODE"
+    if ($LASTEXITCODE -notin @(0, 3010)) { throw "Hybrid device restart failed: $LASTEXITCODE" }
 
     Start-Sleep -Seconds 25
-    $gpu = Get-Gpu $hardwareId
-    $problemCode = [uint32](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_ProblemCode')
-    $driverVersion = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverVersion')
-    $driverInf = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_DriverInfPath')
-    Add-Result "HYBRID_STATUS=$($gpu.Status) CODE=$problemCode VERSION=$driverVersion INF=$driverInf"
-    if ($problemCode -ne 0) { throw "Hybrid kernel start failed with problem code $problemCode" }
+    Assert-HybridRuntime $profile $hashes '32.0.21043.12001'
 
-    $service = [string](Get-DriverProperty $gpu.InstanceId 'DEVPKEY_Device_Service')
-    $imagePath = [string](Get-ItemPropertyValue "HKLM:\SYSTEM\CurrentControlSet\Services\$service" -Name ImagePath)
-    $loadedKernel = $imagePath -replace '^\\SystemRoot', $env:windir
-    Assert-Hash $loadedKernel $expectedAnchorKernel 'loaded hybrid kernel'
-    $activeRepo = Split-Path -Parent (Split-Path -Parent $loadedKernel)
-    $loadedUmd = Join-Path $activeRepo 'B026079\amdxx64.dll'
-    $sourceUmd = Join-Path $SoftwareSourceRoot 'B026079\amdxx64.dll'
-    $sourceUmdHash = (Get-FileHash -LiteralPath $sourceUmd -Algorithm SHA256).Hash
-    Assert-Hash $loadedUmd $sourceUmdHash 'loaded 26.6.1 amdxx64.dll'
-    Add-Result "HYBRID_COMPONENTS_OK kernel=25.2.1 user_mode=26.6.1 service=$service"
-
-    foreach ($linkInf in @((Join-Path $link25Root 'u0412654.inf'), (Join-Path $link26Root 'u0201163.inf'))) {
-        $linkOutput = & pnputil.exe /add-driver $linkInf /install 2>&1 | Out-String
-        $linkExit = $LASTEXITCODE
-        $result.Add($linkOutput.Trim())
-        Add-Result "WHQL_LINK_INSTALL_EXIT=$linkExit INF=$linkInf"
-        if ($linkExit -notin @(0, 3010)) { throw "WHQL link install failed: $linkInf" }
+    if ($RunWhqlDiagnostics) {
+        foreach ($linkInf in @((Join-Path $link25Root 'u0412654.inf'), (Join-Path $link26Root 'u0201163.inf'))) {
+            $linkOutput = & pnputil.exe /add-driver $linkInf /install 2>&1 | Out-String
+            $result.Add($linkOutput.Trim())
+            Add-Result "WHQL_LINK_INSTALL_EXIT=$LASTEXITCODE INF=$linkInf"
+        }
+        Invoke-WhqlDiagnostics "C:\AMD\dxdiag-whql-hybrid-26.6.1-25.2.1-$stamp.txt" | Out-Null
     }
-
-    $dxdiag = "C:\AMD\dxdiag-whql-hybrid-26.6.1-25.2.1-$stamp.txt"
-    $dx = Start-Process -FilePath "$env:windir\System32\dxdiag.exe" `
-        -ArgumentList "/dontskip /whql:on /t `"$dxdiag`"" -WindowStyle Hidden -PassThru
-    if (-not $dx.WaitForExit(120000)) { $dx.Kill(); throw 'dxdiag timed out.' }
-    Start-Sleep -Seconds 2
-    $dxText = Get-Content -LiteralPath $dxdiag -Raw
-    if ($dxText -notmatch 'Card name:\s+AMD Radeon Pro 5500M[\s\S]{0,4000}WHQL Logo.d:\s+Yes') {
-        throw 'dxdiag did not report WHQL Logo as Yes for the hybrid driver.'
-    }
-    Add-Result "DXDIAG_WHQL_YES=$dxdiag"
 
     $finalStartOptions = [string](Get-ItemPropertyValue 'HKLM:\SYSTEM\CurrentControlSet\Control' -Name SystemStartOptions)
     if (($finalStartOptions -split '\s+') -contains 'TESTSIGNING') { throw 'TESTSIGNING unexpectedly became active.' }
@@ -371,8 +402,14 @@ try {
 }
 catch {
     Add-Result "ERROR: $($_.Exception.Message)"
-    if ($driverChanged) {
-        try { Restore-Backup $profile $hardwareId } catch { Add-Result "ROLLBACK_ERROR: $($_.Exception.Message)" }
+    if ($driverChanged -and $profile -and $hardwareId) {
+        try {
+            $restored = Restore-Backup $profile $hardwareId
+            Add-Result "ROLLBACK_SUCCESS=$restored"
+        }
+        catch {
+            Add-Result "ROLLBACK_ERROR: $($_.Exception.Message)"
+        }
     }
     Add-Result "PREPARED_ROOT=$prepareRoot"
     Add-Result "WHQL_LINK_26_ROOT=$link26Root"

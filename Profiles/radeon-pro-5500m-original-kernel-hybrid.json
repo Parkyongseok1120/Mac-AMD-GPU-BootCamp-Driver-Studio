@@ -48,7 +48,8 @@
   ],
   "runtimeFileAssertions": [
     { "path": "B026079/amdkmdag.sys", "sha256": "E04E80541F26F2AB76E67EEB5E006E0178C0240F831EE41BB0073E4F91B40799" },
-    { "path": "B026079/amdxx64.dll", "sha256": "93927BB0DA45B4730A55C6A52CA35B552896AA6DFB2DB67CF909A10B69EFCEEF" }
+    { "path": "B026079/amdxx64.dll", "sha256": "93927BB0DA45B4730A55C6A52CA35B552896AA6DFB2DB67CF909A10B69EFCEEF" },
+    { "path": "B026079/amdgcf.dat", "sha256": "D1AC965FDD33ADE6C7554CA9E3DEF97845E109B7A53B4EE0B8BFCBBC44C68D2A" }
   ],
   "patches": [
     { "type": "TextReplace", "file": "u0201163.inf", "search": "CatalogFile=u0201163.cat", "replacement": "CatalogFile=amdgpu.cat", "expectedOccurrences": 1 },

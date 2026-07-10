@@ -52,6 +52,7 @@
   "install.mode.binary.title": "Binary patch build · TESTSIGNING ON required",
   "install.mode.binary.detail": "Patches AMD driver binaries including amdkmdag.sys. This is the existing path that is currently working with Code 0, and Windows Test Signing mode must be enabled before installation.",
   "install.mode.binary.consent": "I understand that this profile modifies AMD driver binaries, adds a locally trusted certificate, and requires Windows Test Signing mode.",
+  "install.mode.binary.deprecated": "Deprecated: this legacy binary-patch profile is hidden from normal use. Prefer whql-anchor, original-kernel-hybrid, or inf-only profiles.",
   "install.mode.textOnly.title": "No-binary test build · TESTSIGNING OFF experiment",
   "install.mode.textOnly.detail": "Keeps the original amdkmdag.sys and applies only INF/registry compatibility changes. This is for TESTSIGNING OFF validation and may fail to install or still show Code 43.",
   "install.mode.textOnly.consent": "I understand that this no-binary test profile keeps amdkmdag.sys unchanged, should be tested with TESTSIGNING OFF, and may fail or show Code 43.",

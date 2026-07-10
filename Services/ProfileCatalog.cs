@@ -38,6 +38,8 @@ public sealed class ProfileCatalog
                     var profile = await JsonSerializer.DeserializeAsync<DriverProfile>(stream, JsonOptions, cancellationToken)
                         ?? throw new InvalidDataException("Profile JSON is empty.");
                     Validate(profile);
+                    if (profile.InstallationMode.Equals("legacy-binary-patch", StringComparison.OrdinalIgnoreCase))
+                        profile.IsUserVisible = false;
                     profile.SourcePath = file;
                     byId[profile.Id] = profile;
                     _log.Info($"Loaded profile {profile.Id} from {file}");

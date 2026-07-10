@@ -14,7 +14,7 @@ This project is currently limited to a specific Boot Camp setup. It is not a uni
 * AMD Radeon Pro 5500M
 * Hardware ID: `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B&REV_40`
 * Windows 10/11 64-bit through Boot Camp
-* AMD Software: Adrenalin Edition 26.6.1(Binary patch build) / 25.2.1(Original WHQL Anchor)
+* AMD Software: Adrenalin Edition 25.2.1 (Original WHQL Anchor, Verified) / 26.6.1 (Original 25.2.1 Kernel Hybrid, Experimental)
 
 Other GPUs, Mac models, and driver packages are not currently supported unless a matching verified profile is explicitly added.
 
@@ -25,12 +25,14 @@ The tool stops before making changes unless the detected hardware ID, package st
 > The current 26.6.1 profile uses a local binary-patched and test-signed workflow.
 > This project does not redistribute AMD driver binaries or modified driver packages, but this profile is experimental and is under review for legal, licensing, and security concerns.
 > If this approach is found to be problematic, the profile may be removed or replaced with a non-binary-patched workflow.
+> The legacy binary-patch profile is now hidden from the normal UI; set `AMD_BOOTCAMP_SHOW_LEGACY_PROFILES=1` before launch for development access only.
 
 > **검토 안내**
 >
 > 현재 26.6.1 프로필은 로컬 바이너리 패치 및 테스트 서명 기반 흐름을 사용합니다.
 > 이 프로젝트는 AMD 드라이버 바이너리나 수정된 드라이버 패키지를 재배포하지 않지만, 해당 프로필은 실험적 기능이며 법적, 라이선스, 보안 측면에서 검토 중입니다.
 > 이 방식에 문제가 있다고 판단될 경우, 해당 프로필은 제거되거나 바이너리 미패치 방식으로 대체될 수 있습니다.
+> 레거시 바이너리 패치 프로필은 일반 UI에서 숨겨져 있으며, 개발용으로만 실행 전 `AMD_BOOTCAMP_SHOW_LEGACY_PROFILES=1`을 설정하세요.
 
 ## Planned / Experimental Support
 
@@ -43,9 +45,14 @@ The following items are planned for a future update and should not be treated as
 * Clear success/failure dialogs after driver installation
 * A dedicated installation guide to make each installation step easier to understand
 
-The current AMD Adrenalin 26.6.1 profile for the Radeon Pro 5500M requires binary patching to work correctly.
+The recommended no-binary-modification path for newer Adrenalin builds is the
+`original-kernel-hybrid` profile: 26.6.1 user-mode files with an original 25.2.1 WHQL kernel.
+Package preparation and runtime-file assertions pass offline validation, but the profile remains
+`Experimental` until full reboot, rollback, and clean-install evidence is recorded in
+`docs/HYBRID-E2E-VALIDATION.md`.
 
-A non-binary-patched 26.6.1 test option may be included for testing purposes, but it is currently not expected to work correctly.
+The legacy binary-patch 26.6.1 profile is hidden from the normal UI. INF-only 26.6.1 remains a
+diagnostic recipe only and is not expected to boot successfully on the target hardware.
 
 ## Project Goal
 

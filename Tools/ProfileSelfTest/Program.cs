@@ -53,10 +53,18 @@ try
     var audit = await packages.AuditAsync(profile, minimalSource, supplementalSourcePaths: additionalSourcePaths);
     var result = await packages.PrepareUnsignedForValidationAsync(audit, prepared);
 
-    Console.WriteLine($"SELF_TEST=PASS");
+    Console.WriteLine("SELF_TEST=PASS");
     Console.WriteLine($"PROFILE={profile.Id}");
     Console.WriteLine($"FILES={audit.Files.Count}");
     Console.WriteLine($"OUTPUT={result.OutputRoot}");
+    foreach (var assertion in profile.RuntimeFileAssertions)
+    {
+        var path = ProfileCatalog.SafeCombine(prepared, assertion.Path);
+        var hash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(path)));
+        if (!hash.Equals(assertion.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Prepared runtime assertion failed: {assertion.Path}");
+        Console.WriteLine($"RUNTIME_ASSERTION_OK path={assertion.Path} sha256={hash}");
+    }
 
     var payload = new byte[2 * 1024 * 1024 + 37];
     new Random(5500).NextBytes(payload);

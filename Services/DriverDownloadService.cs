@@ -67,7 +67,8 @@ public sealed class DriverDownloadService
             .Where(x => x.HasInstallerForCurrentWindows)
             .Where(x => x.InstallerSha256.Equals(hash, StringComparison.OrdinalIgnoreCase))
             .Where(x => x.InstallerSize <= 0 || x.InstallerSize == info.Length)
-            .OrderBy(x => ProfileUsesBinaryPatch(x) ? 0 : 1)
+            .OrderBy(x => x.IsUserVisible ? 0 : 1)
+            .ThenBy(x => ProfileUsesBinaryPatch(x) ? 1 : 0)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         if (profile is null)

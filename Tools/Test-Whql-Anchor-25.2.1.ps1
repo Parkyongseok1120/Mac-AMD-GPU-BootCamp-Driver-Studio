@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 
 param(
-    [string]$ProjectRoot = 'C:\Users\YongseokPark\Documents\Github\Mac-AMD-GPU-BootCamp-Driver-Studio',
+    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
     [string]$SourceRoot = 'C:\AMD\Official\AMD-25.2.1\Packages\Drivers\Display\WT6A_INF',
     [string]$ResultPath = 'C:\AMD\whql-anchor-25.2.1-result.txt'
 )
