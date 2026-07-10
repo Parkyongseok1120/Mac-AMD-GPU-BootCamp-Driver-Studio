@@ -52,7 +52,7 @@
   "install.mode.binary.title": "바이너리 수정본 · TESTSIGNING ON 필요",
   "install.mode.binary.detail": "amdkmdag.sys 등 AMD 바이너리를 패치합니다. 현재 Code 0으로 동작 중인 기존 방식이며, 설치 전 Windows 테스트 서명 모드가 필요합니다.",
   "install.mode.binary.consent": "이 프로필이 AMD 드라이버 바이너리를 수정하고, 로컬 신뢰 인증서를 추가하며, Windows 테스트 서명 모드가 필요하다는 점을 이해했습니다.",
-  "install.mode.binary.deprecated": "사용 중단: 이 레거시 바이너리 패치 프로필은 일반 UI에서 숨겨져 있습니다. whql-anchor, original-kernel-hybrid, inf-only 프로필을 사용하세요.",
+  "install.mode.binary.deprecated": "사용 중단: 이 레거시 바이너리 패치 프로필은 일반 UI에서 숨겨져 있습니다. 25.2.1 WHQL 앵커 프로필을 사용하세요.",
   "install.mode.textOnly.title": "바이너리 미수정 테스트본 · TESTSIGNING OFF 실험",
   "install.mode.textOnly.detail": "amdkmdag.sys 원본을 유지하고 INF/레지스트리 호환성만 적용합니다. TESTSIGNING OFF 검증용이며, 설치 실패 또는 Code 43 가능성이 있습니다.",
   "install.mode.textOnly.consent": "이 미수정 테스트 프로필은 amdkmdag.sys를 유지하고 TESTSIGNING OFF로 검증하는 실험 경로이며, 실패 또는 Code 43이 발생할 수 있음을 이해했습니다.",

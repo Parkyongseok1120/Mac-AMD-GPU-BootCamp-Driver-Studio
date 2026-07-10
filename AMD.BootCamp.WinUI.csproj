@@ -39,11 +39,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Tools\ComputeHashes.ps1" />
-    <None Include="Tools\Install-Driver-Now.ps1" />
-    <None Include="Tools\Run-TextOnly-Test-Admin.cmd" />
-    <None Include="Tools\Test-TextOnly-Final.ps1" />
-    <None Include="Tools\Test-TextOnly-Install.ps1" />
   </ItemGroup>
 
   <Target Name="CopyWinUICompiledResourcesToPublish" AfterTargets="Publish">

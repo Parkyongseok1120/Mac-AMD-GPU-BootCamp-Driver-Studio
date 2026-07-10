@@ -222,6 +222,20 @@ public sealed class PackageService
                 throw new InvalidDataException($"Prepared file validation failed: {rule.Path}");
         }
         await ValidateRuntimeFileAssertionsAsync(profile, root, cancellationToken);
+        await ValidatePreparedCatalogAsync(profile, root, cancellationToken);
+    }
+
+    private async Task ValidatePreparedCatalogAsync(DriverProfile profile, string root, CancellationToken cancellationToken)
+    {
+        var validate = await _bridge.RunScriptAsync("Assert-PackageCatalog.ps1",
+        [
+            "-PackageRoot", root,
+            "-CatalogFile", profile.CatalogFile,
+            "-InstallationMode", profile.InstallationMode,
+            "-CertificateSubject", profile.CertificateSubject
+        ], cancellationToken);
+        PowerShellBridge.EnsureSuccess(validate, "Prepared package catalog policy validation");
+
         var validateArgs = new List<string>
         {
             "-ValidateOnly",
@@ -232,8 +246,8 @@ public sealed class PackageService
         };
         if (!profile.KernelDriverModified)
             validateArgs.Add("-SkipKernelSigning");
-        var validate = await _bridge.RunScriptAsync("Sign-Package.ps1", validateArgs, cancellationToken);
-        PowerShellBridge.EnsureSuccess(validate, "Prepared package signature validation");
+        var signValidate = await _bridge.RunScriptAsync("Sign-Package.ps1", validateArgs, cancellationToken);
+        PowerShellBridge.EnsureSuccess(signValidate, "Prepared package signature validation");
     }
 
     private static string ResolvePackageRoot(DriverProfile profile, string selectedPath)

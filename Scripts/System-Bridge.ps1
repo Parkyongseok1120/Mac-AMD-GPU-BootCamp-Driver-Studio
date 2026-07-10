@@ -159,6 +159,12 @@ function Test-CurrentBootTestSigning {
     return ($options -split '\s+') -contains 'TESTSIGNING'
 }
 
+function Test-MicrosoftWhcpCatalog([string]$CatalogPath) {
+    if (-not (Test-Path -LiteralPath $CatalogPath)) { return $false }
+    $sig = Get-AuthenticodeSignature -LiteralPath $CatalogPath
+    return ($sig.Status -eq 'Valid' -and $sig.SignerCertificate.Subject -like 'CN=Microsoft Windows Hardware Compatibility Publisher*')
+}
+
 function Apply-ProfileRegistry {
     foreach ($setting in $profile.registrySettings) {
         switch ([string]$setting.root) {
@@ -331,12 +337,18 @@ if ($Action -eq 'Install') {
     Write-Output "GPU=$($gpu.Name)"
     Try-InitializeDisplayClassPaths $gpu | Out-Null
     $kernelModified = if ($null -ne $profile.kernelDriverModified) { [bool]$profile.kernelDriverModified } else { $true }
+    $catalog = Resolve-SafeChild $PackageRoot ([string]$profile.catalogFile)
+    $usesMicrosoftCatalog = Test-MicrosoftWhcpCatalog $catalog
+
     if ($kernelModified) {
         Enable-TestSigning
         Write-Output 'TESTSIGNING=EnabledForNextBoot'
         if (-not (Test-CurrentBootTestSigning)) {
             throw 'Test-signing is configured but is not active in the current Windows session. Restart Windows, then run installation.'
         }
+    } elseif ($usesMicrosoftCatalog) {
+        Write-Output 'TESTSIGNING=NotRequired'
+        Write-Output 'CATALOG_TRUST=Microsoft_WHCP'
     } else {
         $certSubject = [string]$profile.certificateSubject
         $certOk = (
@@ -353,10 +365,13 @@ if ($Action -eq 'Install') {
         Write-Output 'TESTSIGNING=NotRequired'
     }
     $kernel = Resolve-SafeChild $PackageRoot ([string]$profile.kernelDriverPath)
-    $catalog = Resolve-SafeChild $PackageRoot ([string]$profile.catalogFile)
     Write-Output 'SIGNATURE_CHECK=Started'
     $catSig = Get-AuthenticodeSignature -LiteralPath $catalog
-    if ($catSig.Status -ne 'Valid' -or $catSig.SignerCertificate.Subject -ne [string]$profile.certificateSubject) {
+    if ($usesMicrosoftCatalog) {
+        if ($catSig.Status -ne 'Valid' -or $catSig.SignerCertificate.Subject -notlike 'CN=Microsoft Windows Hardware Compatibility Publisher*') {
+            throw "Microsoft catalog signature validation failed: $catalog"
+        }
+    } elseif ($catSig.Status -ne 'Valid' -or $catSig.SignerCertificate.Subject -ne [string]$profile.certificateSubject) {
         throw "Catalog signature validation failed: $catalog"
     }
     Write-Output "SIGNATURE_OK=$catalog"

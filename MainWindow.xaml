@@ -251,7 +251,7 @@
                             <StackPanel Spacing="14">
                                 <TextBlock x:Name="PrepareProfileModeText" Text="Selected install mode" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" />
                                 <TextBlock x:Name="OutputFolderLabel" Text="Output folder" Style="{StaticResource CaptionStyle}" />
-                                <TextBox x:Name="OutputPathBox" Text="C:\AMD\BootCampDriverStudio\Prepared\AMD-26.6.1-Pro5500M" />
+                                <TextBox x:Name="OutputPathBox" Text="C:\AMD\BootCampDriverStudio\Prepared\AMD-25.2.1-Pro5500M" />
                                 <CheckBox x:Name="SecurityConsentCheck">
                                     <TextBlock x:Name="SecurityConsentText" Text="I understand that this adds a locally trusted certificate and requires Windows test-signing mode." TextWrapping="Wrap" />
                                 </CheckBox>

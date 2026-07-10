@@ -889,6 +889,7 @@ public sealed partial class MainWindow : Window
 
         var mode = GetProfileMode(profile);
         EnableTestModeButton.IsEnabled = mode.RequiresTestSigning;
+        PrepareButton.Content = _localization["action.prepareSign"];
         EnableTestModeButton.Content = mode.RequiresTestSigning
             ? _localization["action.testMode"]
             : _localization["install.testSigningNotRequired"];
@@ -913,24 +914,6 @@ public sealed partial class MainWindow : Window
                 true);
         }
 
-        if (profile.InstallationMode.Equals("original-kernel-hybrid", StringComparison.OrdinalIgnoreCase))
-        {
-            return (
-                "Original-kernel hybrid (TESTSIGNING OFF experiment)",
-                "Uses 26.6.1 user-mode files with an untouched original 25.2.1 AMD kernel. It never patches a driver binary, but it is experimental and requires both official packages.",
-                "I understand that this experimental path replaces the 26.6.1 kernel with an unmodified original 25.2.1 AMD kernel and verifies both source hashes.",
-                false);
-        }
-
-        if (profile.InstallationMode.Equals("inf-only", StringComparison.OrdinalIgnoreCase))
-        {
-            return (
-                _localization["install.mode.textOnly.title"],
-                _localization["install.mode.textOnly.detail"],
-                _localization["install.mode.textOnly.consent"],
-                false);
-        }
-
         return (
             _localization["install.mode.whql.title"],
             _localization["install.mode.whql.detail"],
@@ -943,8 +926,6 @@ public sealed partial class MainWindow : Window
     private static int ProfileSelectionPriority(DriverProfile profile) => profile.InstallationMode switch
     {
         "whql-anchor" => 0,
-        "original-kernel-hybrid" => 1,
-        "inf-only" => 2,
         _ when profile.UsesBinaryPatch => 99,
         _ => 50
     };

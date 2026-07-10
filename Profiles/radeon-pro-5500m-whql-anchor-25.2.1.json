@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "amd-25.2.1-radeon-pro-5500m-020f106b-whql-anchor",
-  "displayName": "AMD 25.2.1 Radeon Pro 5500M (020F106B) [Original WHQL Anchor]",
+  "displayName": "AMD 25.2.1 Radeon Pro 5500M (Boot Camp)",
   "marketingVersion": "25.2.1",
   "packageVersion": "24.20.33.05",
   "driverVersion": "32.0.12033.5029",

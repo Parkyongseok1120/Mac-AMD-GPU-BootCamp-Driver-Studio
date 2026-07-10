@@ -52,9 +52,7 @@ public sealed class ProfileCatalog
         }
         return byId.Values
             .OrderByDescending(x => x.MarketingVersion)
-            .ThenBy(x => x.InstallationMode.Equals("original-kernel-hybrid", StringComparison.OrdinalIgnoreCase) ? 0 :
-                x.InstallationMode.Equals("inf-only", StringComparison.OrdinalIgnoreCase) ? 1 :
-                ProfileUsesBinaryPatch(x) ? 99 : 2)
+            .ThenBy(x => ProfileUsesBinaryPatch(x) ? 99 : 0)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }

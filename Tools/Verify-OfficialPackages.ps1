@@ -2,9 +2,8 @@
 
 param(
     [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-    [string]$ProfilePath = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')).Path 'Profiles\radeon-pro-5500m-original-kernel-hybrid-26.6.4.json'),
-    [string]$SoftwareSourceRoot = 'C:\AMD\AMD-Software-Installer\Packages\Drivers\Display2\WT6A_INF',
-    [string]$KernelSourceRoot = 'C:\AMD\Official\AMD-25.2.1\Packages\Drivers\Display\WT6A_INF',
+    [string]$ProfilePath = (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')).Path 'Profiles\radeon-pro-5500m-whql-anchor-25.2.1.json'),
+    [string]$SourceRoot = 'C:\AMD\Official\AMD-25.2.1\Packages\Drivers\Display\WT6A_INF',
     [string]$ResultPath = 'C:\AMD\official-package-verification.txt'
 )
 
@@ -12,9 +11,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 
 $profileFullPath = if ([IO.Path]::IsPathRooted($ProfilePath)) { $ProfilePath } else { Join-Path $ProjectRoot $ProfilePath }
-$anchorProfilePath = Join-Path $ProjectRoot 'Profiles\radeon-pro-5500m-whql-anchor-25.2.1.json'
-$hybrid = Get-Content -LiteralPath $profileFullPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$anchor = Get-Content -LiteralPath $anchorProfilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+$profile = Get-Content -LiteralPath $profileFullPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $result = [System.Collections.Generic.List[string]]::new()
 
 function Add-Result([string]$Message) {
@@ -34,22 +31,11 @@ function Assert-ProfileFile([string]$Root, $Rule, [string]$Label) {
 }
 
 try {
-    Add-Result "PROFILE=$($hybrid.id)"
-    Add-Result "SOFTWARE_ROOT=$SoftwareSourceRoot"
-    Add-Result "KERNEL_ROOT=$KernelSourceRoot"
+    Add-Result "PROFILE=$($profile.id)"
+    Add-Result "SOURCE_ROOT=$SourceRoot"
 
-    foreach ($rule in $hybrid.files) {
-        Assert-ProfileFile $SoftwareSourceRoot $rule $hybrid.marketingVersion
-    }
-
-    foreach ($rule in $anchor.files) {
-        Assert-ProfileFile $KernelSourceRoot $rule '25.2.1'
-    }
-
-    foreach ($source in $hybrid.additionalSources) {
-        foreach ($rule in $source.files) {
-            Assert-ProfileFile $KernelSourceRoot $rule $source.displayName
-        }
+    foreach ($rule in $profile.files) {
+        Assert-ProfileFile $SourceRoot $rule $profile.marketingVersion
     }
 
     Add-Result 'PACKAGE_VERIFICATION=PASS'
