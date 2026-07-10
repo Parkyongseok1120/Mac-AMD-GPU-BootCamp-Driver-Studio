@@ -22,4 +22,4 @@ This supports an optional AMD support request but does **not** replace the verif
 
 ## Current recommendation
 
-Use the 25.2.1 WHQL anchor profile. AMD Adrenalin 26.6.x patch workflows were discontinued due to copyright, EULA, and licensing concerns — see `docs/OFFICIAL-CHANNEL-BACKLOG.md`.
+Use the 25.2.1 WHQL anchor profile. AMD Adrenalin 26.6.x patch workflows were discontinued due to copyright, EULA, and licensing concerns — see `docs/OFFICIAL-CHANNEL-BACKLOG.md`. Technical failure notes: `docs/26.6.x-TECHNICAL-NOTES.md`.

@@ -12,11 +12,7 @@ Use the **25.2.1 WHQL anchor** profile as the only supported release path for Ra
 
 AMD Adrenalin 26.6.1 and 26.6.4 profiles, hybrid recipes, attestation experiments, and binary-patch workflows have been removed and will not be maintained here. Users must download official AMD installers directly from AMD and comply with AMD's license terms.
 
-Prior technical findings (for historical context only):
-
-- INF-only and kernel-hybrid recipes failed on target hardware without binary patching
-- 25.2.1 kernel + 26.6.4 UMD hybrid failed with `STATUS_DEVICE_CONFIGURATION_ERROR` even after full kernel-data matching
-- Microsoft attestation cannot fix UMD–KMD compatibility; it only changes catalog trust
+Technical validation history (reference only): [26.6.x-TECHNICAL-NOTES.md](26.6.x-TECHNICAL-NOTES.md)
 
 ## AMD support request (optional)
 

@@ -1,12 +1,17 @@
-
+# Mac AMD GPU BootCamp Driver Studio Release 1.1.0 — 25.2.1 Anchor Only
 
 <img width="1741" height="972" alt="스크린샷 2026-06-23 202959" src="https://github.com/user-attachments/assets/879d88b5-d19f-4f8d-a515-ec1a1a76ae43" />
 
-# Mac AMD GPU BootCamp Driver Studio Release 1.1.0
+<img width="1717" height="1209" alt="스크린샷 2026-06-23 195454" src="https://github.com/user-attachments/assets/43cbaf70-1ad2-4f93-8e42-82b5a907f307" />
 
 AMD Boot Camp Driver Studio is an unofficial utility that prepares, verifies, locally signs, installs, backs up, and restores a compatible AMD driver package for the Radeon Pro 5500M found in the 2019 16-inch MacBook Pro.
 
 This project is currently limited to a specific Boot Camp setup. It is not a universal AMD Boot Camp driver package.
+
+[![26.6.x Discontinuation Notice](https://img.shields.io/badge/26.6.x-Discontinued_(Copyright%2FEULA)-D32F2F?style=for-the-badge&logo=amd&logoColor=white)](docs/OFFICIAL-CHANNEL-BACKLOG.md)
+[![26.6.x 중단 안내](https://img.shields.io/badge/26.6.x-중단_안내_(저작권%2FEULA)-B71C1C?style=for-the-badge)](docs/OFFICIAL-CHANNEL-BACKLOG.md)
+[![Technical validation notes](https://img.shields.io/badge/26.6.x-Technical_Notes-607D8B?style=for-the-badge)](docs/26.6.x-TECHNICAL-NOTES.md)
+[![기술 검증 기록](https://img.shields.io/badge/26.6.x-기술_검증_기록-546E7A?style=for-the-badge)](docs/26.6.x-TECHNICAL-NOTES.md)
 
 ## Current Supported Environment
 
@@ -22,13 +27,12 @@ The tool stops before making changes unless the detected hardware ID, package st
 
 ## Discontinued paths
 
+[![Read discontinuation policy](https://img.shields.io/badge/Read-Discontinuation_Policy-1565C0?style=flat-square)](docs/OFFICIAL-CHANNEL-BACKLOG.md)
+[![중단 정책 문서 보기](https://img.shields.io/badge/중단_정책-문서_보기-1976D2?style=flat-square)](docs/OFFICIAL-CHANNEL-BACKLOG.md)
+[![Technical failure notes](https://img.shields.io/badge/Technical-Failure_Notes-78909C?style=flat-square)](docs/26.6.x-TECHNICAL-NOTES.md)
+[![기술 실패 기록](https://img.shields.io/badge/기술_실패-기록_보기-90A4AE?style=flat-square)](docs/26.6.x-TECHNICAL-NOTES.md)
+
 **Due to copyright, EULA, and related licensing concerns, distribution of 26.6.x patch workflows has been discontinued.** AMD Adrenalin **26.6.1** and **26.6.4** profiles and experimental recipes have been **removed** from this repository and will not be maintained or released.
-
-Supporting context from prior local validation (not offered as a workaround):
-
-* INF-only 26.6.x failed on target hardware (AMDGCF kernel gate)
-* 25.2.1 kernel + 26.6.4 UMD hybrid failed with device configuration error (`0xC0000182`) even after full kernel-data matching
-* Binary-patched 26.6.1 required test signing and raised additional redistribution and modification concerns
 
 The **25.2.1 WHQL anchor** is the only supported path in this project. It modifies only the INF and catalog — no driver binaries are patched. Users must obtain the original AMD installer from AMD's official website and comply with AMD's license terms.
 
@@ -37,6 +41,8 @@ The **25.2.1 WHQL anchor** is the only supported path in this project. It modifi
 > 저작권, EULA(최종 사용자 사용권 계약), 드라이버 재배포 및 수정 관련 검토 결과, **26.6.x 패치 배포 및 프로필 유지를 중단**했습니다.
 > 이 저장소에서는 AMD Adrenalin 26.6.1 / 26.6.4 호환 레시피를 더 이상 제공·유지하지 않으며, 제거된 26.6.x 패치 프로필의 재배포나 포크 요청에 응하지 않습니다.
 > 지원 경로는 **25.2.1 WHQL 앵커**뿐이며, AMD 공식 설치 프로그램을 사용자가 직접 받아 AMD 라이선스 조건을 준수해야 합니다.
+>
+> 기술적 실패 기록(참고용): [docs/26.6.x-TECHNICAL-NOTES.md](docs/26.6.x-TECHNICAL-NOTES.md)
 
 ## Project Goal
 

@@ -1,5 +1,6 @@
 param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
+    [string]$ReleaseSubtitle = '25.2.1-anchor-only',
     [switch]$NoRestore
 )
 
@@ -11,9 +12,10 @@ $version = $projectXml.Project.PropertyGroup.Version | Select-Object -First 1
 
 if ([string]::IsNullOrWhiteSpace($version)) { throw "Project version not found in $project" }
 
+$releaseSlug = if ([string]::IsNullOrWhiteSpace($ReleaseSubtitle)) { $version } else { "$version-$ReleaseSubtitle" }
 $dist = Join-Path $root 'dist'
-$publish = Join-Path $dist "AMD-BootCamp-Driver-Studio-$version"
-$zip = Join-Path $dist "AMD-BootCamp-Driver-Studio-$version-win-x64.zip"
+$publish = Join-Path $dist "AMD-BootCamp-Driver-Studio-$releaseSlug"
+$zip = Join-Path $dist "AMD-BootCamp-Driver-Studio-$releaseSlug-win-x64.zip"
 
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
